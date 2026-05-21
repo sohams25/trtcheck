@@ -32,8 +32,7 @@ _REMEDIATION_STRING = (
     "model and pass integer IDs at the boundary instead."
 )
 _REMEDIATION_BF16 = (
-    "If targeting TRT < 8.6 or pre-Ampere GPUs, export the model in FP16 "
-    "rather than BF16."
+    "If targeting TRT < 8.6 or pre-Ampere GPUs, export the model in FP16 " "rather than BF16."
 )
 
 
@@ -51,33 +50,48 @@ class PrecisionChecker:
         for inp in graph.input:
             dtype = inp.type.tensor_type.elem_type
             if dtype == TensorProto.UINT8:
-                issues.append(self._issue(
-                    Severity.CRITICAL, inp.name, "Input",
-                    f"Input '{inp.name}' has dtype UINT8; TensorRT accepts only "
-                    "FP32, FP16, INT32, or INT8 as graph inputs.",
-                    _REMEDIATION_UINT8,
-                ))
+                issues.append(
+                    self._issue(
+                        Severity.CRITICAL,
+                        inp.name,
+                        "Input",
+                        f"Input '{inp.name}' has dtype UINT8; TensorRT accepts only "
+                        "FP32, FP16, INT32, or INT8 as graph inputs.",
+                        _REMEDIATION_UINT8,
+                    )
+                )
             elif dtype == TensorProto.DOUBLE:
-                issues.append(self._issue(
-                    Severity.CRITICAL, inp.name, "Input",
-                    f"Input '{inp.name}' has dtype DOUBLE (FLOAT64); TensorRT "
-                    "has no double-precision support.",
-                    _REMEDIATION_DOUBLE,
-                ))
+                issues.append(
+                    self._issue(
+                        Severity.CRITICAL,
+                        inp.name,
+                        "Input",
+                        f"Input '{inp.name}' has dtype DOUBLE (FLOAT64); TensorRT "
+                        "has no double-precision support.",
+                        _REMEDIATION_DOUBLE,
+                    )
+                )
             elif dtype == TensorProto.STRING:
-                issues.append(self._issue(
-                    Severity.CRITICAL, inp.name, "Input",
-                    f"Input '{inp.name}' has dtype STRING; TensorRT has no "
-                    "string type.",
-                    _REMEDIATION_STRING,
-                ))
+                issues.append(
+                    self._issue(
+                        Severity.CRITICAL,
+                        inp.name,
+                        "Input",
+                        f"Input '{inp.name}' has dtype STRING; TensorRT has no " "string type.",
+                        _REMEDIATION_STRING,
+                    )
+                )
             elif dtype == TensorProto.BFLOAT16:
-                issues.append(self._issue(
-                    Severity.WARNING, inp.name, "Input",
-                    f"Input '{inp.name}' has dtype BFLOAT16; supported only "
-                    "on TRT 8.6+ with Ampere or newer GPUs.",
-                    _REMEDIATION_BF16,
-                ))
+                issues.append(
+                    self._issue(
+                        Severity.WARNING,
+                        inp.name,
+                        "Input",
+                        f"Input '{inp.name}' has dtype BFLOAT16; supported only "
+                        "on TRT 8.6+ with Ampere or newer GPUs.",
+                        _REMEDIATION_BF16,
+                    )
+                )
         return issues
 
     def _check_initializers(self, graph: onnx.GraphProto) -> list[Issue]:
@@ -85,31 +99,44 @@ class PrecisionChecker:
         for init in graph.initializer:
             dtype = init.data_type
             if dtype == TensorProto.INT64:
-                issues.append(self._issue(
-                    Severity.WARNING, init.name, "Initializer",
-                    f"Initializer '{init.name}' has dtype INT64; TensorRT will "
-                    "cast to INT32, which can overflow for large indices.",
-                    _REMEDIATION_INT64,
-                ))
+                issues.append(
+                    self._issue(
+                        Severity.WARNING,
+                        init.name,
+                        "Initializer",
+                        f"Initializer '{init.name}' has dtype INT64; TensorRT will "
+                        "cast to INT32, which can overflow for large indices.",
+                        _REMEDIATION_INT64,
+                    )
+                )
             elif dtype == TensorProto.DOUBLE:
-                issues.append(self._issue(
-                    Severity.CRITICAL, init.name, "Initializer",
-                    f"Initializer '{init.name}' has dtype DOUBLE (FLOAT64); "
-                    "TensorRT has no double-precision support.",
-                    _REMEDIATION_DOUBLE,
-                ))
+                issues.append(
+                    self._issue(
+                        Severity.CRITICAL,
+                        init.name,
+                        "Initializer",
+                        f"Initializer '{init.name}' has dtype DOUBLE (FLOAT64); "
+                        "TensorRT has no double-precision support.",
+                        _REMEDIATION_DOUBLE,
+                    )
+                )
             elif dtype == TensorProto.BFLOAT16:
-                issues.append(self._issue(
-                    Severity.WARNING, init.name, "Initializer",
-                    f"Initializer '{init.name}' has dtype BFLOAT16; supported "
-                    "only on TRT 8.6+ with Ampere or newer GPUs.",
-                    _REMEDIATION_BF16,
-                ))
+                issues.append(
+                    self._issue(
+                        Severity.WARNING,
+                        init.name,
+                        "Initializer",
+                        f"Initializer '{init.name}' has dtype BFLOAT16; supported "
+                        "only on TRT 8.6+ with Ampere or newer GPUs.",
+                        _REMEDIATION_BF16,
+                    )
+                )
         return issues
 
     @staticmethod
-    def _issue(severity: Severity, node_name: str, operator: str,
-               message: str, remediation: str) -> Issue:
+    def _issue(
+        severity: Severity, node_name: str, operator: str, message: str, remediation: str
+    ) -> Issue:
         return Issue(
             severity=severity,
             category=CheckCategory.PRECISION,

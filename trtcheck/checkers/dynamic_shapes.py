@@ -55,10 +55,10 @@ class DynamicShapeChecker:
         return issues
 
 
-def _shape_of(value_info: onnx.ValueInfoProto) -> list | None:
+def _shape_of(value_info: onnx.ValueInfoProto) -> list[int | str] | None:
     if not value_info.type.tensor_type.shape.dim:
         return None
-    out: list = []
+    out: list[int | str] = []
     for d in value_info.type.tensor_type.shape.dim:
         if d.dim_param:
             out.append(d.dim_param)

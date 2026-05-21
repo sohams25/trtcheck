@@ -83,9 +83,7 @@ class GraphStructureChecker:
                 if attr.type == onnx.AttributeProto.TENSOR:
                     size = _initializer_size_bytes(attr.t)
                     if size > _LARGE_CONSTANT_BYTES:
-                        issues.append(
-                            self._large_const_issue(node.name or "<constant>", size)
-                        )
+                        issues.append(self._large_const_issue(node.name or "<constant>", size))
         return issues
 
     @staticmethod

@@ -21,7 +21,9 @@ def matrix() -> dict:
 class TestOperatorSupportChecker:
     def test_clean_model_produces_no_issues(self, clean_model: onnx.ModelProto) -> None:
         # Conv + Relu are both 'supported' on every target version.
-        issues = OperatorSupportChecker(matrix_path=_MATRIX_PATH, target_trt="10.3").check(clean_model)
+        issues = OperatorSupportChecker(matrix_path=_MATRIX_PATH, target_trt="10.3").check(
+            clean_model
+        )
         assert issues == []
 
     def test_sequence_empty_is_critical(self, sequence_empty_model: onnx.ModelProto) -> None:
@@ -53,6 +55,7 @@ class TestOperatorSupportChecker:
     def test_not_supported_on_old_version_but_supported_on_new(self) -> None:
         # GroupNormalization: not_supported on 8.0, supported on 10.3
         from onnx import TensorProto, helper
+
         inp = helper.make_tensor_value_info("input", TensorProto.FLOAT, [1, 4, 8, 8])
         out = helper.make_tensor_value_info("output", TensorProto.FLOAT, [1, 4, 8, 8])
         scale = helper.make_tensor_value_info("scale", TensorProto.FLOAT, [4])
@@ -76,6 +79,7 @@ class TestOperatorSupportChecker:
     def test_unknown_operator_emits_info_not_critical(self) -> None:
         # Ops we don't know about should not panic users -- info only.
         from onnx import TensorProto, helper
+
         inp = helper.make_tensor_value_info("input", TensorProto.FLOAT, [1, 4])
         out = helper.make_tensor_value_info("output", TensorProto.FLOAT, [1, 4])
         custom = helper.make_node(

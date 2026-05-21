@@ -143,7 +143,7 @@ class ControlFlowChecker:
 def _body_subgraph(node: onnx.NodeProto) -> onnx.GraphProto | None:
     for attr in node.attribute:
         if attr.name == "body" and attr.type == onnx.AttributeProto.GRAPH:
-            return attr.g
+            return attr.g  # type: ignore[no-any-return]
     return None
 
 

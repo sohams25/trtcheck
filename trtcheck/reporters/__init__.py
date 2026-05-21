@@ -10,8 +10,7 @@ from trtcheck.types import AnalysisReport
 class Reporter(Protocol):
     name: str
 
-    def render(self, report: AnalysisReport) -> str:
-        ...
+    def render(self, report: AnalysisReport) -> str: ...
 
 
 __all__ = ["Reporter"]

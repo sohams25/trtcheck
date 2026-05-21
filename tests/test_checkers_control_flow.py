@@ -1,8 +1,8 @@
 """Tests for ControlFlowChecker."""
 
+import numpy as np
 import onnx
 from onnx import TensorProto, helper, numpy_helper
-import numpy as np
 
 from trtcheck.checkers.control_flow import ControlFlowChecker
 from trtcheck.types import CheckCategory, Severity
@@ -63,7 +63,10 @@ def _nested_loop_model() -> onnx.ModelProto:
         body=inner_body,
     )
     outer_body = helper.make_graph(
-        [inner_loop, helper.make_node("Identity", ["outer_cond"], ["outer_cond_out"], name="o_cid")],
+        [
+            inner_loop,
+            helper.make_node("Identity", ["outer_cond"], ["outer_cond_out"], name="o_cid"),
+        ],
         "outer_body",
         [outer_iter, outer_cond, outer_state],
         [outer_cond_out, outer_state_out],
@@ -113,9 +116,7 @@ class TestControlFlowChecker:
 
     def test_scan_emits_warning(self) -> None:
         issues = ControlFlowChecker().check(_scan_model())
-        assert any(
-            i.severity is Severity.WARNING and i.operator == "Scan" for i in issues
-        )
+        assert any(i.severity is Severity.WARNING and i.operator == "Scan" for i in issues)
 
     def test_target_version_affects_loop_severity(
         self, control_flow_loop_model: onnx.ModelProto

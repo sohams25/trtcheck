@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import onnx
 from onnx import TensorProto, helper, numpy_helper
-import numpy as np
 
 OUT_DIR = Path(__file__).parent
 FAIL_DIR = OUT_DIR / "failing"
@@ -84,9 +84,7 @@ def create_sequence_empty() -> onnx.ModelProto:
     out = helper.make_tensor_value_info("output", TensorProto.FLOAT, [1, 4])
 
     seq_empty = helper.make_node("SequenceEmpty", [], ["seq0"], name="seq_empty")
-    seq_insert = helper.make_node(
-        "SequenceInsert", ["seq0", "input"], ["seq1"], name="seq_insert"
-    )
+    seq_insert = helper.make_node("SequenceInsert", ["seq0", "input"], ["seq1"], name="seq_insert")
     # position is required as input for SequenceAt in opset 17
     pos_init = numpy_helper.from_array(np.array(0, dtype=np.int64), name="pos")
     seq_at = helper.make_node("SequenceAt", ["seq1", "pos"], ["output"], name="seq_at")
@@ -111,9 +109,7 @@ def create_int64_weights() -> onnx.ModelProto:
 
     idx = numpy_helper.from_array(np.array([0, 2, 5], dtype=np.int64), name="indices")
 
-    gather = helper.make_node(
-        "Gather", ["input", "indices"], ["output"], name="gather_1", axis=0
-    )
+    gather = helper.make_node("Gather", ["input", "indices"], ["output"], name="gather_1", axis=0)
 
     graph = helper.make_graph(
         nodes=[gather],
@@ -131,9 +127,7 @@ def create_int64_weights() -> onnx.ModelProto:
 def create_fully_dynamic() -> onnx.ModelProto:
     """Every input dim is a symbol (batch, channels, h, w). TRT can build
     but cannot estimate memory or fuse well."""
-    inp = helper.make_tensor_value_info(
-        "input", TensorProto.FLOAT, ["batch", "channels", "h", "w"]
-    )
+    inp = helper.make_tensor_value_info("input", TensorProto.FLOAT, ["batch", "channels", "h", "w"])
     out = helper.make_tensor_value_info(
         "output", TensorProto.FLOAT, ["batch", "channels", "h", "w"]
     )
@@ -186,7 +180,9 @@ def create_control_flow_loop() -> onnx.ModelProto:
     body_state_out = helper.make_tensor_value_info("body_state_out", TensorProto.FLOAT, [1])
 
     one = numpy_helper.from_array(np.array([1.0], dtype=np.float32), name="one")
-    body_add = helper.make_node("Add", ["body_state_in", "one"], ["body_state_out"], name="body_add")
+    body_add = helper.make_node(
+        "Add", ["body_state_in", "one"], ["body_state_out"], name="body_add"
+    )
     body_id = helper.make_node("Identity", ["body_cond"], ["body_cond_out"], name="body_cond_id")
 
     body_graph = helper.make_graph(

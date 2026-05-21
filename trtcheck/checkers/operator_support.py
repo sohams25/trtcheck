@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import onnx
 
@@ -37,14 +38,12 @@ class OperatorSupportChecker:
     ) -> None:
         path = Path(matrix_path) if matrix_path else _default_matrix_path()
         with open(path) as f:
-            self._matrix: dict = json.load(f)
+            self._matrix: dict[str, Any] = json.load(f)
         valid = set(self._matrix.get("target_trt_versions", []))
         if target_trt not in valid:
-            raise ValueError(
-                f"target_trt={target_trt!r} not in matrix versions {sorted(valid)}"
-            )
+            raise ValueError(f"target_trt={target_trt!r} not in matrix versions {sorted(valid)}")
         self._target = target_trt
-        self._ops: dict = self._matrix["operators"]
+        self._ops: dict[str, dict[str, Any]] = self._matrix["operators"]
 
     def check(self, model: onnx.ModelProto) -> list[Issue]:
         issues: list[Issue] = []
@@ -65,15 +64,14 @@ class OperatorSupportChecker:
     def _make_issue(
         self,
         node: onnx.NodeProto,
-        entry: dict,
+        entry: dict[str, Any],
         severity: Severity,
     ) -> Issue:
         op = node.op_type
         notes = entry.get("notes", "")
         if severity is Severity.CRITICAL:
-            message = (
-                f"Operator '{op}' is not supported in TensorRT {self._target}."
-                + (f" {notes}" if notes else "")
+            message = f"Operator '{op}' is not supported in TensorRT {self._target}." + (
+                f" {notes}" if notes else ""
             )
             remediation = entry.get("remediation") or (
                 "Replace with an equivalent supported op, write a TRT plugin, "

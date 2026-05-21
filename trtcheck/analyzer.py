@@ -48,7 +48,9 @@ class Analyzer:
         model = onnx.load(str(path))
         return self.analyze_model(model, filename=str(path))
 
-    def analyze_model(self, model: onnx.ModelProto, *, filename: str = "<in-memory>") -> AnalysisReport:
+    def analyze_model(
+        self, model: onnx.ModelProto, *, filename: str = "<in-memory>"
+    ) -> AnalysisReport:
         all_issues = []
         for checker in self.checkers:
             all_issues.extend(checker.check(model))
@@ -56,7 +58,9 @@ class Analyzer:
         # Sort: critical first, then warning, then info. Stable.
         all_issues.sort(key=lambda i: Severity.rank(i.severity))
 
-        opset = max((o.version for o in model.opset_import if o.domain in ("", "ai.onnx")), default=0)
+        opset = max(
+            (o.version for o in model.opset_import if o.domain in ("", "ai.onnx")), default=0
+        )
         report = AnalysisReport(
             filename=filename,
             onnx_ir_version=str(model.ir_version),

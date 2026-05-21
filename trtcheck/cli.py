@@ -138,9 +138,7 @@ def main(
         return
 
     if len(models) != 1:
-        raise click.BadParameter(
-            "Pass one ONNX file, or use --diff with exactly two files."
-        )
+        raise click.BadParameter("Pass one ONNX file, or use --diff with exactly two files.")
 
     path = models[0]
     if not path.exists():

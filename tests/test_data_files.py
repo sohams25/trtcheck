@@ -40,9 +40,9 @@ class TestOperatorMatrix:
     def test_every_operator_covers_every_target_version(self, matrix: dict) -> None:
         for op, entry in matrix["operators"].items():
             assert "support" in entry, f"{op} missing 'support' key"
-            assert set(entry["support"].keys()) == _EXPECTED_VERSIONS, (
-                f"{op} support keys are {set(entry['support'])}, expected {_EXPECTED_VERSIONS}"
-            )
+            assert (
+                set(entry["support"].keys()) == _EXPECTED_VERSIONS
+            ), f"{op} support keys are {set(entry['support'])}, expected {_EXPECTED_VERSIONS}"
 
     def test_support_values_are_valid(self, matrix: dict) -> None:
         for op, entry in matrix["operators"].items():

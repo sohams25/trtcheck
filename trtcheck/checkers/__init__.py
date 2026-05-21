@@ -17,8 +17,7 @@ from trtcheck.types import Issue
 class Checker(Protocol):
     name: str
 
-    def check(self, model: onnx.ModelProto) -> list[Issue]:
-        ...
+    def check(self, model: onnx.ModelProto) -> list[Issue]: ...
 
 
 __all__ = ["Checker"]

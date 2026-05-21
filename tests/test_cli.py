@@ -20,18 +20,12 @@ class TestCLI:
         assert result.exit_code == 0
         assert "trtcheck" in result.output.lower() or "0.1.0" in result.output
 
-    def test_clean_model_exits_zero(
-        self, runner: CliRunner, fixture_dir: Path
-    ) -> None:
+    def test_clean_model_exits_zero(self, runner: CliRunner, fixture_dir: Path) -> None:
         result = runner.invoke(main, [str(fixture_dir / "clean_minimal.onnx")])
         assert result.exit_code == 0, result.output
 
-    def test_failing_model_exits_nonzero(
-        self, runner: CliRunner, fixture_dir: Path
-    ) -> None:
-        result = runner.invoke(
-            main, [str(fixture_dir / "failing" / "sequence_empty.onnx")]
-        )
+    def test_failing_model_exits_nonzero(self, runner: CliRunner, fixture_dir: Path) -> None:
+        result = runner.invoke(main, [str(fixture_dir / "failing" / "sequence_empty.onnx")])
         assert result.exit_code != 0
         assert "SequenceEmpty" in result.output
 
@@ -71,9 +65,7 @@ class TestCLI:
         body = out.read_text().lower()
         assert "<!doctype html" in body
 
-    def test_severity_filter_hides_warnings(
-        self, runner: CliRunner, fixture_dir: Path
-    ) -> None:
+    def test_severity_filter_hides_warnings(self, runner: CliRunner, fixture_dir: Path) -> None:
         # uint8_input has at least one critical, at least one warning maybe.
         result_all = runner.invoke(
             main,
@@ -91,9 +83,7 @@ class TestCLI:
             ],
         )
         payload_crit = json.loads(result_crit.output)
-        non_critical_in_all = [
-            i for i in payload_all["issues"] if i["severity"] != "critical"
-        ]
+        non_critical_in_all = [i for i in payload_all["issues"] if i["severity"] != "critical"]
         assert all(i["severity"] == "critical" for i in payload_crit["issues"])
         # Sanity: filter actually filters at least one issue (only meaningful
         # if there were any non-criticals in the unfiltered output).
@@ -109,9 +99,7 @@ class TestCLI:
         )
         assert result.exit_code == 0
 
-    def test_target_trt_unknown_version_errors(
-        self, runner: CliRunner, fixture_dir: Path
-    ) -> None:
+    def test_target_trt_unknown_version_errors(self, runner: CliRunner, fixture_dir: Path) -> None:
         result = runner.invoke(
             main,
             [str(fixture_dir / "clean_minimal.onnx"), "--target-trt", "99.9"],
@@ -136,9 +124,7 @@ class TestCLI:
         payload = json.loads(result.output)
         assert "before" in payload and "after" in payload
 
-    def test_missing_file_errors_cleanly(
-        self, runner: CliRunner, tmp_path: Path
-    ) -> None:
+    def test_missing_file_errors_cleanly(self, runner: CliRunner, tmp_path: Path) -> None:
         result = runner.invoke(main, [str(tmp_path / "nope.onnx")])
         assert result.exit_code != 0
         assert "not found" in result.output.lower() or "no such" in result.output.lower()

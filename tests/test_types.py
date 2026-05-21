@@ -1,6 +1,7 @@
 """Tests for the core type definitions used across the analyzer."""
 
 import json
+
 import pytest
 
 from trtcheck.types import (

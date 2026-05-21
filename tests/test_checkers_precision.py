@@ -1,8 +1,8 @@
 """Tests for PrecisionChecker (dtype-level findings)."""
 
+import numpy as np
 import onnx
 from onnx import TensorProto, helper, numpy_helper
-import numpy as np
 
 from trtcheck.checkers.precision import PrecisionChecker
 from trtcheck.types import CheckCategory, Severity
@@ -62,19 +62,19 @@ class TestPrecisionChecker:
         model = _model_with_input_dtype(TensorProto.DOUBLE)
         issues = PrecisionChecker().check(model)
         assert any(
-            i.severity is Severity.CRITICAL and "double" in i.message.lower()
-            for i in issues
+            i.severity is Severity.CRITICAL and "double" in i.message.lower() for i in issues
         )
 
     def test_string_input_is_critical(self) -> None:
         model = _model_with_input_dtype(TensorProto.STRING)
         issues = PrecisionChecker().check(model)
         assert any(
-            i.severity is Severity.CRITICAL and "string" in i.message.lower()
-            for i in issues
+            i.severity is Severity.CRITICAL and "string" in i.message.lower() for i in issues
         )
 
-    def test_int64_remediation_suggests_int32_cast(self, int64_weights_model: onnx.ModelProto) -> None:
+    def test_int64_remediation_suggests_int32_cast(
+        self, int64_weights_model: onnx.ModelProto
+    ) -> None:
         issues = PrecisionChecker().check(int64_weights_model)
         int64_issues = [i for i in issues if "int64" in i.message.lower()]
         assert int64_issues, "expected at least one INT64 issue"

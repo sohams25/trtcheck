@@ -9,10 +9,10 @@ import json
 
 import pytest
 
-from trtcheck.types import AnalysisReport, CheckCategory, Issue, Severity
 from trtcheck.reporters.console import ConsoleReporter
 from trtcheck.reporters.html import HTMLReporter
 from trtcheck.reporters.json import JSONReporter
+from trtcheck.types import AnalysisReport, CheckCategory, Issue, Severity
 
 
 def _passing_report() -> AnalysisReport:
