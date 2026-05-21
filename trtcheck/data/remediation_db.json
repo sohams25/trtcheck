@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-05-21",
+  "issues": {
+    "int64_weights": {
+      "category": "precision",
+      "severity": "warning",
+      "summary": "INT64 tensors detected in graph constants or weights.",
+      "explanation": "TensorRT does not natively support INT64. Engine build will cast to INT32, which can overflow for large indices.",
+      "remediation": "Before exporting, cast indices to torch.int32: e.g. `idx = idx.to(torch.int32)`. For embedding lookups, ensure the indices tensor is int32.",
+      "docs_link": "https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#layers-precision"
+    },
+    "uint8_input": {
+      "category": "precision",
+      "severity": "critical",
+      "summary": "UINT8 graph input detected.",
+      "explanation": "TensorRT inputs must be FLOAT32, FLOAT16, INT32, or INT8. UINT8 image tensors are common in preprocessing but must be cast before reaching the model.",
+      "remediation": "Apply the UINT8 -> FLOAT32 conversion (and normalization) in your preprocessing pipeline, not inside the exported model.",
+      "docs_link": "https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#network_data_types"
+    },
+    "bf16_unsupported": {
+      "category": "precision",
+      "severity": "warning",
+      "summary": "BFLOAT16 tensors present.",
+      "explanation": "BF16 is supported only on Ampere+ GPUs and TRT 8.6+. On older targets the build fails or silently promotes to FP32.",
+      "remediation": "If targeting older GPUs or TRT 8.0, export the model in FP16 instead of BF16.",
+      "docs_link": null
+    },
+    "float64_tensors": {
+      "category": "precision",
+      "severity": "critical",
+      "summary": "FLOAT64 (double) tensors detected.",
+      "explanation": "TensorRT does not support double precision. Models trained or exported with float64 must be downcast before conversion.",
+      "remediation": "Call `model = model.float()` before torch.onnx.export, and verify with `onnx.checker` that no FLOAT64 remains.",
+      "docs_link": null
+    },
+    "string_tensors": {
+      "category": "precision",
+      "severity": "critical",
+      "summary": "String tensors detected.",
+      "explanation": "TensorRT has no string type. Models that process raw strings (tokenizers, label encoders) cannot be deployed end-to-end with TRT.",
+      "remediation": "Move string preprocessing out of the model and pass integer token IDs instead.",
+      "docs_link": null
+    },
+    "fully_dynamic_input_shape": {
+      "category": "dynamic_shapes",
+      "severity": "warning",
+      "summary": "Input tensor has every dimension dynamic.",
+      "explanation": "TRT can build dynamic engines, but optimizer cannot estimate memory or fuse layers well when every dimension is symbolic.",
+      "remediation": "Pin spatial dims at export: pass dynamic_axes={'input': {0: 'batch'}} (or whatever truly varies) and leave H,W concrete.",
+      "docs_link": "https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#work_dynamic_shapes"
+    },
+    "missing_output": {
+      "category": "graph_structure",
+      "severity": "critical",
+      "summary": "Graph has no declared outputs.",
+      "explanation": "TensorRT refuses to build engines for graphs with zero outputs. Typically caused by aggressive constant-folding or shape inference failure.",
+      "remediation": "Inspect with `onnx.checker.check_model`. Re-export with do_constant_folding=False to localize the issue."
+    },
+    "isolated_node": {
+      "category": "graph_structure",
+      "severity": "warning",
+      "summary": "Node has no consumers downstream.",
+      "explanation": "Disconnected subgraphs are silently dropped by TRT, which sometimes hides bugs in the exported graph (e.g. an inplace side effect that ONNX could not express).",
+      "remediation": "Confirm the orphan node represents intentional dead code. If not, audit the forward() method for unsupported in-place ops."
+    },
+    "duplicate_node_name": {
+      "category": "graph_structure",
+      "severity": "warning",
+      "summary": "Multiple nodes share the same name.",
+      "explanation": "ONNX permits non-unique node names but several TRT tooling paths (engine introspection, layer-precision overrides) assume uniqueness.",
+      "remediation": "Set unique node names during export, or run an ONNX simplifier pass before TRT conversion."
+    },
+    "loop_dynamic_trip_count": {
+      "category": "control_flow",
+      "severity": "warning",
+      "summary": "Loop op with non-constant trip count.",
+      "explanation": "TensorRT requires a statically known or shape-inferable trip count for Loop. Dynamic trip counts derived from runtime tensor values fail at build time.",
+      "remediation": "Refactor the loop to use a fixed iteration count. If the count depends on input size, consider unrolling or a fully-vectorized formulation.",
+      "docs_link": "https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#loops"
+    },
+    "nested_loop": {
+      "category": "control_flow",
+      "severity": "critical",
+      "summary": "Nested Loop nodes detected.",
+      "explanation": "TensorRT does not support Loop-within-Loop. Inner loops must be unrolled or flattened.",
+      "remediation": "Restructure the model to use a single Loop with combined trip count, or fully unroll inner iterations."
+    },
+    "if_branch_shape_mismatch": {
+      "category": "control_flow",
+      "severity": "critical",
+      "summary": "If branches produce outputs with incompatible shapes or dtypes.",
+      "explanation": "TRT requires both then/else branches to emit identically shaped, identically typed tensors.",
+      "remediation": "Make the two branches produce the same output shape; pad or broadcast the smaller branch to match."
+    },
+    "scan_dynamic_length": {
+      "category": "control_flow",
+      "severity": "warning",
+      "summary": "Scan op with dynamic sequence length.",
+      "explanation": "TRT requires Scan sequence length to be known at engine build time.",
+      "remediation": "Fix the scan length at export, or replace with a Loop over a constant range."
+    },
+    "unsupported_operator": {
+      "category": "operator_support",
+      "severity": "critical",
+      "summary": "Operator with no TRT implementation.",
+      "explanation": "This op type has no native TensorRT layer. Engine build will fail.",
+      "remediation": "Replace with an equivalent supported op, write a TRT plugin, or remove from the graph if it is dead.",
+      "docs_link": "https://github.com/onnx/onnx-tensorrt/blob/main/docs/operators.md"
+    },
+    "partial_operator": {
+      "category": "operator_support",
+      "severity": "warning",
+      "summary": "Operator supported with restrictions.",
+      "explanation": "TRT supports this op only for certain attribute or dtype combinations.",
+      "remediation": "Check the operator-specific notes in the report for the exact restriction."
+    },
+    "large_constant": {
+      "category": "graph_structure",
+      "severity": "info",
+      "summary": "Large Constant node (>10MB).",
+      "explanation": "TRT will lift large constants into engine weights, which can balloon engine file size if the constant is per-batch data instead of a learned weight.",
+      "remediation": "Verify the constant is genuinely a learned weight rather than e.g. a baked-in image."
+    },
+    "opset_too_old": {
+      "category": "graph_structure",
+      "severity": "warning",
+      "summary": "ONNX opset version below recommended floor.",
+      "explanation": "TRT 10.x has best coverage for opset 17+; older opsets may force conservative decompositions.",
+      "remediation": "Re-export with opset_version=17 (or the highest your training framework supports)."
+    },
+    "external_data_missing": {
+      "category": "graph_structure",
+      "severity": "critical",
+      "summary": "Model references external weight files that were not found.",
+      "explanation": "ONNX supports storing weights in separate files. If they are missing at analysis time TRT will also fail to load them.",
+      "remediation": "Ensure all sibling .data files are present, or re-export with save_as_external_data=False."
+    },
+    "input_with_no_type": {
+      "category": "graph_structure",
+      "severity": "critical",
+      "summary": "Graph input declares no tensor element type.",
+      "explanation": "TRT requires every input to declare its element type.",
+      "remediation": "Re-export the model; this typically indicates a corrupted ONNX file."
+    },
+    "in_place_aliasing": {
+      "category": "graph_structure",
+      "severity": "warning",
+      "summary": "Heuristic detection of in-place aliasing artifacts.",
+      "explanation": "PyTorch in-place operations (e.g. relu_) sometimes survive ONNX export as redundant Identity chains, which can confuse TRT shape inference.",
+      "remediation": "Replace in-place activations with their out-of-place counterparts."
+    }
+  }
+}

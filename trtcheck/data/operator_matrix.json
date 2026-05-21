@@ -1,0 +1,861 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-05-21",
+  "target_trt_versions": [
+    "8.0",
+    "8.6",
+    "10.0",
+    "10.3"
+  ],
+  "operators": {
+    "Conv": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Full support across all TRT versions. NCHW format.",
+      "limitations": [
+        "3D convolution requires TRT 8.6+ for best performance."
+      ]
+    },
+    "ConvTranspose": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Supported. Asymmetric padding handled via explicit Pad fusion in TRT 10."
+    },
+    "MatMul": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Supported with broadcasting."
+    },
+    "Gemm": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Supported. Fused into Conv when possible."
+    },
+    "Relu": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "LeakyRelu": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "PRelu": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Sigmoid": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Tanh": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Elu": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Selu": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "HardSigmoid": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "HardSwish": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Native fusion in TRT 8.6+. Decomposed in 8.0."
+    },
+    "Gelu": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Native Gelu op added in TRT 8.6. Earlier versions emulate via Erf."
+    },
+    "Mish": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "partial",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Added in TRT 8.6 as a plugin, native in 10.0+."
+    },
+    "Softmax": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "LogSoftmax": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "BatchNormalization": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "InstanceNormalization": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "LayerNormalization": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Native LayerNormalization op added in TRT 8.6. Pre-8.6 must decompose.",
+      "remediation": "Use ONNX opset 17+ with native LayerNormalization, or upgrade TRT to 8.6+."
+    },
+    "GroupNormalization": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Added in TRT 10.0. Replace with BatchNormalization for older TRT.",
+      "remediation": "Replace nn.GroupNorm with nn.BatchNorm2d, or upgrade TRT to 10.0+."
+    },
+    "Add": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Sub": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Mul": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Div": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Pow": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Sqrt": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Exp": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Log": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Abs": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Neg": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Reciprocal": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ReduceMean": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ReduceSum": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ReduceMax": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ReduceMin": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ReduceProd": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Pre-8.6 requires opset >= 13."
+    },
+    "Equal": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Greater": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "GreaterOrEqual": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Decomposed before TRT 8.6."
+    },
+    "Less": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "LessOrEqual": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "And": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Or": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Not": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Where": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Reshape": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Transpose": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Slice": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Concat": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Split": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Squeeze": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Unsqueeze": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Tile": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Expand": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Pad": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Only constant mode in 8.0. Reflect/edge added in 8.6."
+    },
+    "Shape": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Size": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Gather": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "GatherElements": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "GatherND": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Scatter": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ScatterElements": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ScatterND": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "MaxPool": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "AveragePool": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "GlobalMaxPool": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "GlobalAveragePool": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Resize": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "partial",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Only nearest and linear modes pre-10.0. Cubic added in 10.0.",
+      "limitations": [
+        "antialias attribute not supported before TRT 10.0."
+      ]
+    },
+    "Upsample": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Deprecated in newer ONNX opsets, use Resize."
+    },
+    "QuantizeLinear": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "DequantizeLinear": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Cast": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "partial",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "UINT8 -> INT8 cast unreliable pre-10.0. FLOAT64 source always rejected.",
+      "remediation": "Cast inputs to FLOAT32/INT32 before exporting from PyTorch."
+    },
+    "SequenceEmpty": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "not_supported",
+        "10.3": "not_supported"
+      },
+      "notes": "Sequence ops are not supported by TensorRT. Emitted when PyTorch code uses List[Tensor].",
+      "remediation": "Replace List[Tensor] with torch.stack() or pre-allocate a tensor.",
+      "github_issue": "https://github.com/onnx/onnx-tensorrt/issues/1044"
+    },
+    "SequenceInsert": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "not_supported",
+        "10.3": "not_supported"
+      },
+      "notes": "See SequenceEmpty."
+    },
+    "SequenceAt": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "not_supported",
+        "10.3": "not_supported"
+      },
+      "notes": "See SequenceEmpty."
+    },
+    "SequenceConstruct": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "not_supported",
+        "10.3": "not_supported"
+      },
+      "notes": "See SequenceEmpty."
+    },
+    "SequenceLength": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "not_supported",
+        "10.3": "not_supported"
+      },
+      "notes": "See SequenceEmpty."
+    },
+    "SequenceErase": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "not_supported",
+        "10.3": "not_supported"
+      },
+      "notes": "See SequenceEmpty."
+    },
+    "SplitToSequence": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "not_supported",
+        "10.3": "not_supported"
+      },
+      "notes": "Use Split instead."
+    },
+    "If": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "partial",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Both branches must produce identical output shapes and dtypes.",
+      "limitations": [
+        "Branch outputs with differing shapes fail at engine build."
+      ]
+    },
+    "Loop": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "partial",
+        "10.0": "partial",
+        "10.3": "partial"
+      },
+      "notes": "Requires a static or shape-inferable trip count. Dynamic trip counts fail.",
+      "remediation": "Replace dynamic-length loops with fixed iteration counts at export time.",
+      "limitations": [
+        "Nested loops are not supported.",
+        "Carried tensors must keep stable shapes."
+      ]
+    },
+    "Scan": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "partial",
+        "10.0": "partial",
+        "10.3": "partial"
+      },
+      "notes": "Sequence length must be known at build time."
+    },
+    "Constant": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ConstantOfShape": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ArgMax": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "ArgMin": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "TopK": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "NonZero": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "NonMaxSuppression": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Single-class NMS only pre-8.6. Use EfficientNMS plugin for batched NMS."
+    },
+    "Range": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "OneHot": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Identity": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Dropout": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Folded out during TRT engine build."
+    },
+    "Trilu": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "partial",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Added in TRT 8.6 plugin set, native 10.0+."
+    },
+    "EyeLike": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "partial",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "Det": {
+      "support": {
+        "8.0": "not_supported",
+        "8.6": "not_supported",
+        "10.0": "not_supported",
+        "10.3": "not_supported"
+      },
+      "notes": "No TRT support."
+    },
+    "RoiAlign": {
+      "support": {
+        "8.0": "partial",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Required for detection models."
+    },
+    "DepthToSpace": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    },
+    "SpaceToDepth": {
+      "support": {
+        "8.0": "supported",
+        "8.6": "supported",
+        "10.0": "supported",
+        "10.3": "supported"
+      }
+    }
+  }
+}
