@@ -147,3 +147,38 @@ def test_html_reporter_drops_non_http_docs_link() -> None:
     out = HTMLReporter().render(r)
     assert "javascript:" not in out
     assert "alert(1)" not in out
+
+
+def test_html_render_fragment_excludes_document_wrappers() -> None:
+    """render_fragment must return just the inner content for safe splicing."""
+    r = AnalysisReport(
+        filename="x.onnx",
+        onnx_ir_version="8",
+        opset_version=17,
+        producer="p",
+        total_nodes=1,
+        issues=[],
+    )
+    fragment = HTMLReporter().render_fragment(r)
+    assert "<!doctype" not in fragment.lower()
+    assert "<html" not in fragment.lower()
+    assert "<head" not in fragment.lower()
+    assert "<body" not in fragment.lower()
+    # But it does contain the report container
+    assert 'class="container"' in fragment
+
+
+def test_html_render_still_includes_fragment_content() -> None:
+    """render() must include everything render_fragment() includes."""
+    r = AnalysisReport(
+        filename="x.onnx",
+        onnx_ir_version="8",
+        opset_version=17,
+        producer="p",
+        total_nodes=1,
+        issues=[],
+    )
+    reporter = HTMLReporter()
+    full = reporter.render(r)
+    fragment = reporter.render_fragment(r)
+    assert fragment in full

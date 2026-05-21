@@ -180,19 +180,23 @@ def _run_diff(
         )
         _emit(payload, output)
     else:
-        # Console/HTML diff: render the two reports back-to-back.
-        before_text = _render(report_before, fmt)
-        after_text = _render(report_after, fmt)
         if fmt == "html":
+            from trtcheck.reporters.html import HTMLReporter, _CSS
+
+            reporter = HTMLReporter()
             combined = (
-                "<!doctype html><html><body>"
-                + _strip_doctype(before_text)
+                '<!doctype html><html><head><meta charset="utf-8">'
+                f"<title>trtcheck diff</title><style>{_CSS}</style>"
+                "</head><body>"
+                + reporter.render_fragment(report_before)
                 + "<hr>"
-                + _strip_doctype(after_text)
+                + reporter.render_fragment(report_after)
                 + "</body></html>"
             )
             _emit(combined, output)
         else:
+            before_text = _render(report_before, fmt)
+            after_text = _render(report_after, fmt)
             sep = "\n" + ("=" * 80) + "\n"
             _emit(
                 f"BEFORE: {before}\n{before_text}\n{sep}AFTER: {after}\n{after_text}",
@@ -204,18 +208,6 @@ def _run_diff(
     # the 'before' fixture still fails.
     if not report_after.conversion_likely:
         sys.exit(1)
-
-
-def _strip_doctype(html_text: str) -> str:
-    # Drop the <!doctype html> and <html>/<head>/<body> wrappers so the two
-    # reports can sit side by side in a single document.
-    lowered = html_text.lower()
-    body_open = lowered.find("<body")
-    body_close = lowered.find("</body>")
-    if body_open == -1 or body_close == -1:
-        return html_text
-    inner_start = lowered.find(">", body_open) + 1
-    return html_text[inner_start:body_close]
 
 
 if __name__ == "__main__":
