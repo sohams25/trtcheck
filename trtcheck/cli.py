@@ -121,6 +121,14 @@ def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
     default=False,
     help="Overwrite --output even if it already exists.",
 )
+@click.option(
+    "--max-model-size",
+    type=int,
+    default=500,
+    show_default=True,
+    metavar="MB",
+    help="Refuse to load ONNX files larger than this (in MB).",
+)
 def main(
     models: tuple[Path, ...],
     target_trt: str,
@@ -130,6 +138,7 @@ def main(
     verbose: bool,
     diff: bool,
     force: bool,
+    max_model_size: int,
 ) -> None:
     """Run trtcheck against one or two ONNX models.
 
@@ -143,7 +152,7 @@ def main(
     if diff:
         if len(models) != 2:
             raise click.BadParameter("--diff requires exactly two model arguments")
-        _run_diff(models, target_trt, fmt, output, severity, force)
+        _run_diff(models, target_trt, fmt, output, severity, force, max_model_size)
         return
 
     if len(models) != 1:
@@ -153,8 +162,11 @@ def main(
     if not path.exists():
         raise click.ClickException(f"ONNX file not found: {path}")
 
-    analyzer = Analyzer(AnalyzerConfig(target_trt=target_trt))
-    report = analyzer.analyze_path(path)
+    analyzer = Analyzer(AnalyzerConfig(target_trt=target_trt, max_model_size_mb=max_model_size))
+    try:
+        report = analyzer.analyze_path(path)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
     # --verbose lowers the threshold to 'info' unless the user explicitly
     # asked for a stricter --severity. Explicit --severity wins.
     effective_severity = "info" if verbose else severity
@@ -174,6 +186,7 @@ def _run_diff(
     output: Path | None,
     severity: str,
     force: bool,
+    max_model_size: int,
 ) -> None:
     before, after = models
     if not before.exists():
@@ -181,9 +194,12 @@ def _run_diff(
     if not after.exists():
         raise click.ClickException(f"ONNX file not found: {after}")
 
-    analyzer = Analyzer(AnalyzerConfig(target_trt=target_trt))
-    report_before = _filter_issues(analyzer.analyze_path(before), severity)
-    report_after = _filter_issues(analyzer.analyze_path(after), severity)
+    analyzer = Analyzer(AnalyzerConfig(target_trt=target_trt, max_model_size_mb=max_model_size))
+    try:
+        report_before = _filter_issues(analyzer.analyze_path(before), severity)
+        report_after = _filter_issues(analyzer.analyze_path(after), severity)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
 
     if fmt == "json":
         payload = json.dumps(

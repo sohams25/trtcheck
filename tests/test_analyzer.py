@@ -55,3 +55,20 @@ class TestAnalyzer:
         analyzer = Analyzer(AnalyzerConfig())
         report = analyzer.analyze_path(fixture_dir / "clean_minimal.onnx")
         assert isinstance(report, AnalysisReport)
+
+
+def test_oversized_model_is_rejected(tmp_path: Path) -> None:
+    """Files above the configured size cap must not be loaded."""
+    big_path = tmp_path / "big.onnx"
+    # Write a 2 MB file -- not a valid ONNX, but the size check must run first.
+    big_path.write_bytes(b"x" * (2 * 1024 * 1024))
+    with pytest.raises(ValueError, match="above the .* MB limit"):
+        Analyzer(AnalyzerConfig(max_model_size_mb=1)).analyze_path(big_path)
+
+
+def test_size_limit_can_be_raised(tmp_path: Path, fixture_dir: Path) -> None:
+    """Bumping the cap allows otherwise-rejected files through."""
+    # The clean fixture is tiny, so any sane cap works; just verify the knob.
+    Analyzer(AnalyzerConfig(max_model_size_mb=10000)).analyze_path(
+        fixture_dir / "clean_minimal.onnx"
+    )

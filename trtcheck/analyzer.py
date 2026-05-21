@@ -20,6 +20,7 @@ from trtcheck.types import AnalysisReport, Severity
 class AnalyzerConfig:
     target_trt: str = "10.3"
     matrix_path: Path | str | None = None  # for tests / custom matrices
+    max_model_size_mb: int = 500  # refuse to load files larger than this
 
 
 class Analyzer:
@@ -45,6 +46,14 @@ class Analyzer:
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"ONNX file not found: {path}")
+        size_mb = path.stat().st_size / (1024 * 1024)
+        if size_mb > self.config.max_model_size_mb:
+            raise ValueError(
+                f"ONNX file is {size_mb:.1f} MB, above the "
+                f"{self.config.max_model_size_mb} MB limit. "
+                "Raise the limit via AnalyzerConfig(max_model_size_mb=...) "
+                "or the --max-model-size CLI flag."
+            )
         model = onnx.load(str(path))
         return self.analyze_model(model, filename=str(path))
 

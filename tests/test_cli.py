@@ -168,3 +168,11 @@ def test_force_overwrites_existing_output(
     )
     assert result.exit_code == 0
     assert out.read_text() != "placeholder"
+
+
+def test_max_model_size_flag_rejects_oversized(runner: CliRunner, tmp_path: Path) -> None:
+    big = tmp_path / "big.onnx"
+    big.write_bytes(b"x" * (2 * 1024 * 1024))
+    result = runner.invoke(main, [str(big), "--max-model-size", "1"])
+    assert result.exit_code != 0
+    assert "limit" in result.output.lower()
