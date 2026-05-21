@@ -14,7 +14,6 @@ from trtcheck.analyzer import Analyzer, AnalyzerConfig
 from trtcheck.plugins import Checker, Fixer, Reporter
 from trtcheck.types import AnalysisReport, CheckCategory, Issue, Severity
 
-
 # --- helper plugin classes ---------------------------------------------------
 
 
@@ -104,9 +103,7 @@ class TestLoadPlugins:
 
 
 class TestAnalyzerPluginIntegration:
-    def test_analyzer_includes_discovered_checker(
-        self, clean_model: onnx.ModelProto
-    ) -> None:
+    def test_analyzer_includes_discovered_checker(self, clean_model: onnx.ModelProto) -> None:
         from trtcheck import plugins
 
         eps = {
@@ -135,9 +132,7 @@ class TestAnalyzerPluginIntegration:
             report = analyzer.analyze_model(clean_model, filename="x.onnx")
         # Pipeline completed; analyzer emitted a warning row referencing the plugin.
         plugin_warnings = [
-            i
-            for i in report.issues
-            if i.severity is Severity.WARNING and "broken" in i.node_name
+            i for i in report.issues if i.severity is Severity.WARNING and "broken" in i.node_name
         ]
         assert plugin_warnings, "broken plugin should produce a warning row"
 
@@ -165,9 +160,7 @@ class TestAnalyzerPluginIntegration:
             "trtcheck.reporters": [],
         }
         with patch.object(plugins, "_iter_entry_points", side_effect=lambda g: eps[g]):
-            analyzer = Analyzer(
-                AnalyzerConfig(discover_entry_point_plugins=False)
-            )
+            analyzer = Analyzer(AnalyzerConfig(discover_entry_point_plugins=False))
             report = analyzer.analyze_model(clean_model, filename="x.onnx")
         assert not any(i.message == "hello from chatty" for i in report.issues)
 
