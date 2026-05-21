@@ -12,11 +12,16 @@ this module unchanged.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import onnx
 
 from trtcheck.types import AnalysisReport, Issue
+
+if TYPE_CHECKING:
+    # Imported only for the Fixer.fix() return type. Avoids a runtime
+    # circular import (trtcheck.fixers re-imports from this module).
+    from trtcheck.fixers import FixApplied
 
 
 @runtime_checkable
@@ -35,8 +40,7 @@ class Fixer(Protocol):
 
     name: str
 
-    def fix(self, model: onnx.ModelProto) -> list["FixApplied"]:  # noqa: F821
-        ...
+    def fix(self, model: onnx.ModelProto) -> list[FixApplied]: ...
 
 
 @runtime_checkable
