@@ -3,6 +3,28 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [0.4.0] - 2026-05-21
+
+### Added
+- Composite GitHub Action at the repo root (`action.yml`). Runs trtcheck
+  against PR-changed `*.onnx` files and emits a sticky-comment markdown
+  body as an artifact. Inputs: `version`, `target-trt`, `severity`,
+  `fail-on`, `paths`, `changed-only`. Outputs: `report-json`, `comment-md`,
+  `critical-count`, `warning-count`, `status`.
+- Helper scripts under `action/`:
+  - `run.sh` discovers files and aggregates per-file JSON reports.
+  - `render_comment.py` formats the aggregate as markdown.
+  - `post_comment.py` upserts the sticky PR comment via the GitHub REST.
+- Example consumer workflows under `.github/workflows/example-consumer/`
+  showing the safe dual-workflow pattern for fork PRs.
+- Dogfood `selftest.yml` that runs the action against the bundled
+  fixtures on every push.
+
+### Security
+- Strict allowlists on `inputs.paths` and `inputs.version`.
+- All ONNX-derived strings are HTML/markdown-escaped before being
+  rendered into the sticky comment.
+
 ## [0.3.0] - 2026-05-21
 
 ### Added

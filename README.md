@@ -80,6 +80,66 @@ that into CI to catch regressions at PR time.
 
 Each finding includes a specific remediation, not just "this is bad."
 
+## Using trtcheck as a GitHub Action
+
+`trtcheck` ships a composite GitHub Action that runs on PRs touching
+`*.onnx` files and posts a sticky comment summarizing the report.
+
+Add two workflows to your consumer repo. Workflow A runs against the PR
+head with read-only permissions; Workflow B posts the comment using the
+base repo's token. This dual-workflow pattern keeps fork PRs safe.
+
+`.github/workflows/trtcheck.yml`:
+
+```yaml
+name: trtcheck
+on:
+  pull_request:
+    paths: ["**/*.onnx"]
+permissions:
+  contents: read
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - id: trtcheck
+        uses: sohams25/trtcheck@v0.4.0
+        with:
+          target-trt: "10.3"
+          fail-on: "critical"
+      - if: always()
+        run: |
+          mkdir -p comment-artifact
+          cp "${{ steps.trtcheck.outputs.comment-md }}" comment-artifact/body.md
+          echo "${{ github.event.pull_request.number }}" > comment-artifact/pr-number.txt
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: trtcheck-comment, path: comment-artifact/ }
+```
+
+`.github/workflows/trtcheck-comment.yml` (see
+`.github/workflows/example-consumer/trtcheck-comment.yml` for the full
+template). It downloads the artifact from Workflow A and posts the
+sticky comment.
+
+### Inputs
+
+| Input | Default | Purpose |
+|---|---|---|
+| `version` | `0.4.0` | trtcheck PyPI version to install |
+| `target-trt` | `10.3` | `--target-trt` value |
+| `severity` | `warning` | `--severity` filter |
+| `fail-on` | `critical` | exit policy: `critical`, `warning`, or `never` |
+| `paths` | `**/*.onnx` | glob of files to consider |
+| `changed-only` | `true` | only analyze PR-changed files |
+
+### Outputs
+
+`report-json`, `comment-md`, `critical-count`, `warning-count`, `status`
+(`pass` or `fail`).
+
 ## How the operator matrix is maintained
 
 The TRT-version-to-operator support table lives in
