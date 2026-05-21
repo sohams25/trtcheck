@@ -3,6 +3,19 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [0.3.0] - 2026-05-21
+
+### Added
+- Three new built-in fixers in `trtcheck/fixers/`:
+  - `float64_to_float32` casts FLOAT64 initializers to FLOAT32 when no
+    value is NaN, infinite, or exceeds FP32 range.
+  - `drop_dropout` removes Dropout nodes and rewires consumers. Skips
+    nodes whose mask output is referenced.
+  - `upsample_to_resize` rewrites deprecated Upsample ops as Resize
+    when the mode is nearest or linear and the graph opset is >= 13.
+- `tools/check_matrix_drift.py` and an offline fixture for it. Compares
+  the bundled operator matrix against upstream onnx-tensorrt docs.
+
 ## [0.2.1] - 2026-05-21
 
 ### Changed
