@@ -44,3 +44,6 @@ Thumbs.db
 .claude_state.jsonl
 report.html
 report.json
+
+# Optional benchmark inputs (real ONNX models, kept out of git)
+tests/fixtures/benchmark/
