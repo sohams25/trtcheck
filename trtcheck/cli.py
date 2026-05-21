@@ -75,7 +75,7 @@ def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
 @click.argument(
     "models",
     nargs=-1,
-    required=True,
+    required=False,
     type=click.Path(exists=False, dir_okay=False, path_type=Path),
 )
 @click.option(
@@ -144,6 +144,19 @@ def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
     default=False,
     help="With --fix, print what would change without writing anything.",
 )
+@click.option(
+    "--list-plugins",
+    is_flag=True,
+    default=False,
+    help="Print discovered checkers, fixers, and reporters and exit.",
+)
+@click.option(
+    "--disable-plugin",
+    "disable_plugins",
+    multiple=True,
+    metavar="NAME",
+    help="Exclude a plugin by its name. May be passed multiple times.",
+)
 def main(
     models: tuple[Path, ...],
     target_trt: str,
@@ -156,6 +169,8 @@ def main(
     max_model_size: int,
     fix_mode: bool,
     dry_run: bool,
+    list_plugins: bool,
+    disable_plugins: tuple[str, ...],
 ) -> None:
     """Run trtcheck against one or two ONNX models.
 
@@ -166,10 +181,14 @@ def main(
       trtcheck model.onnx --format json --output report.json
       trtcheck before.onnx after.onnx --diff
     """
+    if list_plugins:
+        _print_plugin_listing(target_trt, max_model_size, list(disable_plugins))
+        return
+
     if diff:
         if len(models) != 2:
             raise click.BadParameter("--diff requires exactly two model arguments")
-        _run_diff(models, target_trt, fmt, output, severity, force, max_model_size)
+        _run_diff(models, target_trt, fmt, output, severity, force, max_model_size, disable_plugins)
         return
 
     if len(models) != 1:
@@ -184,7 +203,13 @@ def main(
     if not path.exists():
         raise click.ClickException(f"ONNX file not found: {path}")
 
-    analyzer = Analyzer(AnalyzerConfig(target_trt=target_trt, max_model_size_mb=max_model_size))
+    analyzer = Analyzer(
+        AnalyzerConfig(
+            target_trt=target_trt,
+            max_model_size_mb=max_model_size,
+            disable_plugins=list(disable_plugins),
+        )
+    )
     try:
         report = analyzer.analyze_path(path)
     except ValueError as exc:
@@ -209,6 +234,7 @@ def _run_diff(
     severity: str,
     force: bool,
     max_model_size: int,
+    disable_plugins: tuple[str, ...] = (),
 ) -> None:
     before, after = models
     if not before.exists():
@@ -216,7 +242,13 @@ def _run_diff(
     if not after.exists():
         raise click.ClickException(f"ONNX file not found: {after}")
 
-    analyzer = Analyzer(AnalyzerConfig(target_trt=target_trt, max_model_size_mb=max_model_size))
+    analyzer = Analyzer(
+        AnalyzerConfig(
+            target_trt=target_trt,
+            max_model_size_mb=max_model_size,
+            disable_plugins=list(disable_plugins),
+        )
+    )
     try:
         report_before = _filter_issues(analyzer.analyze_path(before), severity)
         report_after = _filter_issues(analyzer.analyze_path(after), severity)
@@ -289,6 +321,39 @@ def _run_fix(
     onnx.checker.check_model(new_model)
     onnx.save(new_model, str(output))
     click.echo(f"\n{len(applied)} fix(es) applied. Wrote {output}.")
+
+
+def _print_plugin_listing(target_trt: str, max_model_size: int, disable_plugins: list[str]) -> None:
+    """Print built-in plus discovered plugins, grouped by type."""
+    analyzer = Analyzer(
+        AnalyzerConfig(
+            target_trt=target_trt,
+            max_model_size_mb=max_model_size,
+            disable_plugins=disable_plugins,
+        )
+    )
+    click.echo("Checkers:")
+    for c in analyzer.checkers:
+        click.echo(f"  - {getattr(c, 'name', c.__class__.__name__)}")
+    click.echo("\nFixers:")
+    from trtcheck.fixers import default_fixers
+    from trtcheck.plugins import load_plugins
+
+    built_in_fixers = list(default_fixers())
+    _, discovered_fixers, discovered_reporters = load_plugins()
+    disabled = set(disable_plugins)
+    for f in built_in_fixers + discovered_fixers:
+        name = getattr(f, "name", f.__class__.__name__)
+        if name not in disabled:
+            click.echo(f"  - {name}")
+    click.echo("\nReporters:")
+    built_in_reporters = ["console", "json", "html"]
+    for name in built_in_reporters:
+        click.echo(f"  - {name}")
+    for r in discovered_reporters:
+        rname = getattr(r, "name", r.__class__.__name__)
+        if rname not in disabled:
+            click.echo(f"  - {rname}")
 
 
 if __name__ == "__main__":
