@@ -23,7 +23,10 @@ class TestScore:
         }
         r = score(manifest, outcomes)
         assert (r.true_positive, r.false_positive, r.true_negative, r.false_negative) == (
-            1, 0, 1, 0,
+            1,
+            0,
+            1,
+            0,
         )
         assert r.precision == 1.0
         assert r.recall == 1.0
@@ -44,7 +47,10 @@ class TestScore:
         }
         r = score(manifest, outcomes)
         assert (r.true_positive, r.false_positive, r.true_negative, r.false_negative) == (
-            1, 1, 1, 1,
+            1,
+            1,
+            1,
+            1,
         )
         assert r.precision == 0.5
         assert r.recall == 0.5
@@ -126,13 +132,10 @@ class TestMain:
     def test_cli_reads_manifest_and_outcomes(self, tmp_path: Path) -> None:
         manifest_path = tmp_path / "manifest.yaml"
         manifest_path.write_text(
-            "models:\n"
-            "  - name: a\n    source: bundled.onnx\n    expected: fail\n"
+            "models:\n" "  - name: a\n    source: bundled.onnx\n    expected: fail\n"
         )
         outcomes_path = tmp_path / "out.json"
-        outcomes_path.write_text(
-            json.dumps({"predictions": {"a": {"trtcheck": "fail"}}})
-        )
+        outcomes_path.write_text(json.dumps({"predictions": {"a": {"trtcheck": "fail"}}}))
         rc = main(["--manifest", str(manifest_path), "--outcomes", str(outcomes_path)])
         assert rc == 0
 
