@@ -50,3 +50,4 @@ tests/fixtures/benchmark/
 
 # Cron / autonomous-progress state (not part of the published repo)
 .claude/
+bench/cache/
