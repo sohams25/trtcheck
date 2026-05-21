@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [0.2.0] - 2026-05-21
+
+### Added
+- `--fix` and `--dry-run` flags to automatically rewrite known-safe
+  failure patterns into a new ONNX file.
+- Two built-in fixers in `trtcheck/fixers/`:
+  - `int64_to_int32` casts INT64 initializers to INT32 when values fit.
+  - `uint8_input` promotes a UINT8 graph input to FLOAT when the only
+    consumer is a Cast to FLOAT.
+- `--fix` refuses to overwrite the input file and (without `--force`)
+  refuses to overwrite any pre-existing `--output` file.
+
 ## [0.1.1] - 2026-05-21
 
 ### Added

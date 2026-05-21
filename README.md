@@ -59,6 +59,10 @@ trtcheck model.onnx --severity critical
 
 # Compare two versions of a model (before/after a fix)
 trtcheck before.onnx after.onnx --diff
+
+# Auto-fix simple issues (INT64 indices, UINT8 inputs followed by Cast)
+trtcheck model.onnx --fix --dry-run --output model_fixed.onnx
+trtcheck model.onnx --fix --output model_fixed.onnx
 ```
 
 Exit code is `1` if conversion is unlikely to succeed, `0` otherwise. Wire
@@ -111,8 +115,6 @@ project conventions.
 
 ## Roadmap
 
-- `--fix` auto-rewrite for the simpler cases (UINT8 -> FP32 cast insertion,
-  INT64 -> INT32 weight rewriting).
 - HTML diff view with side-by-side columns.
 - Quarterly refresh tooling driven by NVIDIA release notes.
 
