@@ -9,11 +9,14 @@ class TestPluginsModuleSurface:
     def test_plugins_module_exposes_three_protocols(self) -> None:
         from trtcheck.plugins import Checker, Fixer, Reporter
 
-        # All three must be Protocol-like (issubclass of typing.Protocol).
+        # Each Protocol must declare a `name` annotation. Protocol classes
+        # carry annotations on __annotations__ rather than as concrete
+        # class attributes, so check that.
         for cls in (Checker, Fixer, Reporter):
-            assert issubclass(Protocol, cls.__bases__[-1].__mro__[-2:] or [object]) or True
-            # Easier check: each must declare a `name` attribute and one method.
-            assert hasattr(cls, "name")
+            assert "name" in cls.__annotations__, f"{cls.__name__} missing 'name'"
+            # And one callable method (check / fix / render)
+            methods = [n for n in dir(cls) if not n.startswith("_") and callable(getattr(cls, n))]
+            assert methods, f"{cls.__name__} declares no methods"
 
     def test_existing_paths_re_export_same_protocol_objects(self) -> None:
         """Importing Checker from the old path must yield the same object as
