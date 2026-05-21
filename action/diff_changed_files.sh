@@ -24,7 +24,7 @@ fi
 # Added or modified files since base.
 # Validate glob characters before passing to Python. Reject anything that
 # could be a shell meta-character escape; we accept standard glob syntax.
-if [[ ! "$glob" =~ ^[A-Za-z0-9._/*?\[\]-]+$ ]]; then
+if [[ ! "$glob" =~ ^[][A-Za-z0-9._/*?-]+$ ]]; then
     echo "diff_changed_files: refusing unsafe paths glob: $glob" >&2
     exit 2
 fi

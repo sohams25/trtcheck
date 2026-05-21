@@ -15,7 +15,7 @@ changed_only="${INPUT_CHANGED_ONLY:-true}"
 # Validate paths_glob early: only allow safe glob characters. This blocks
 # command substitution, IFS abuse, and absolute-path escapes from a caller
 # passing a hostile inputs.paths.
-if [[ ! "$paths_glob" =~ ^[A-Za-z0-9._/*?\[\]-]+$ ]]; then
+if [[ ! "$paths_glob" =~ ^[][A-Za-z0-9._/*?-]+$ ]]; then
     echo "trtcheck action: refusing unsafe paths glob: $paths_glob" >&2
     exit 2
 fi
