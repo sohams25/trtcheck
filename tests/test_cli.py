@@ -271,9 +271,7 @@ class TestListPluginsAndDisable:
         assert "fixers" in result.output.lower()
         assert "reporters" in result.output.lower()
 
-    def test_list_plugins_does_not_require_a_model_argument(
-        self, runner: CliRunner
-    ) -> None:
+    def test_list_plugins_does_not_require_a_model_argument(self, runner: CliRunner) -> None:
         """--list-plugins is informational; it should work without an
         ONNX path."""
         result = runner.invoke(main, ["--list-plugins"])
@@ -310,9 +308,7 @@ class TestListPluginsAndDisable:
         without_data = _json.loads(result_without.output)
         # The operator-support checker contributes at least one critical
         # issue here; disabling it must drop those.
-        op_issues_with = [
-            i for i in with_data["issues"] if i["category"] == "operator_support"
-        ]
+        op_issues_with = [i for i in with_data["issues"] if i["category"] == "operator_support"]
         op_issues_without = [
             i for i in without_data["issues"] if i["category"] == "operator_support"
         ]
