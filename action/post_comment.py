@@ -31,12 +31,19 @@ def _request(
     req.add_header("X-GitHub-Api-Version", "2022-11-28")
     if payload is not None:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        body = resp.read()
-        if not body:
-            return {}
-        result: dict[str, Any] | list[dict[str, Any]] = json.loads(body)
-        return result
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = resp.read()
+            if not body:
+                return {}
+            result: dict[str, Any] | list[dict[str, Any]] = json.loads(body)
+            return result
+    except urllib.error.HTTPError as exc:
+        # Surface status + reason only. Never let the request object (which
+        # carries the Authorization header) hit a traceback in CI logs.
+        raise RuntimeError(f"GitHub API {method} {url} failed: {exc.code} {exc.reason}") from None
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"GitHub API {method} {url} unreachable: {exc.reason}") from None
 
 
 def find_sticky_comment_id(repo: str, pr_number: int, token: str) -> int | None:

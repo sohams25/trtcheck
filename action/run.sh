@@ -12,13 +12,32 @@ paths_glob="${INPUT_PATHS:-**/*.onnx}"
 changed_only="${INPUT_CHANGED_ONLY:-true}"
 
 # Discover candidates
+# Validate paths_glob early: only allow safe glob characters. This blocks
+# command substitution, IFS abuse, and absolute-path escapes from a caller
+# passing a hostile inputs.paths.
+if [[ ! "$paths_glob" =~ ^[A-Za-z0-9._/*?\[\]-]+$ ]]; then
+    echo "trtcheck action: refusing unsafe paths glob: $paths_glob" >&2
+    exit 2
+fi
+
 if [[ "$changed_only" == "true" ]]; then
     mapfile -t files < <(bash "${action_dir}/diff_changed_files.sh")
 else
-    # Use shell globstar to match the glob across the repo.
-    shopt -s globstar nullglob
-    # shellcheck disable=SC2206
-    files=( $paths_glob )
+    # Discover via python fnmatch -- never expand the user-supplied glob in
+    # the shell, since unquoted expansion would be subject to word-splitting
+    # and command substitution.
+    mapfile -t files < <(python3 - "$paths_glob" <<'PY'
+import fnmatch, os, sys
+pat = sys.argv[1]
+for root, _, names in os.walk(".", followlinks=False):
+    for name in names:
+        rel = os.path.normpath(os.path.join(root, name))
+        if rel.startswith("./"):
+            rel = rel[2:]
+        if fnmatch.fnmatch(rel, pat):
+            print(rel)
+PY
+)
 fi
 
 echo "Analyzing ${#files[@]} file(s):"

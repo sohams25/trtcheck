@@ -22,12 +22,19 @@ if ! git rev-parse --quiet --verify "$base^{commit}" >/dev/null 2>&1; then
 fi
 
 # Added or modified files since base.
+# Validate glob characters before passing to Python. Reject anything that
+# could be a shell meta-character escape; we accept standard glob syntax.
+if [[ ! "$glob" =~ ^[A-Za-z0-9._/*?\[\]-]+$ ]]; then
+    echo "diff_changed_files: refusing unsafe paths glob: $glob" >&2
+    exit 2
+fi
+
 git diff --name-only --diff-filter=AM "$base"...HEAD \
-    | python3 -c "
-import fnmatch, sys
-pat = '''${glob}'''
+    | TRTCHECK_GLOB="$glob" python3 -c '
+import fnmatch, os, sys
+pat = os.environ["TRTCHECK_GLOB"]
 for line in sys.stdin:
     name = line.rstrip()
     if name and fnmatch.fnmatch(name, pat):
         print(name)
-"
+' 

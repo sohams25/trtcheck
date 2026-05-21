@@ -33,6 +33,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=$(cat artifact/pr-number.txt)
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid PR number from artifact: $PR_NUMBER"
+            exit 1
+          fi
           python3 "${{ github.workspace }}/action/post_comment.py" \
             --repo "${{ github.repository }}" \
             --pr "$PR_NUMBER" \

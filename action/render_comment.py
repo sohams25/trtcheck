@@ -4,6 +4,10 @@ Input: path to an aggregate JSON document of the shape
     {"files": [{"path": "<repo-relative path>", "report": <AnalysisReport.to_dict()>}]}
 Output: markdown to stdout, with an invisible HTML marker as the first line
 so the poster can find and update this comment on subsequent runs.
+
+All ONNX-derived strings (paths, node names, operator names, messages) are
+escaped before being inserted into the markdown. The strings ultimately
+come from PR-controlled bytes, so we must defang them.
 """
 
 from __future__ import annotations
@@ -13,6 +17,44 @@ import sys
 from typing import Any
 
 MARKER = "<!-- trtcheck-sticky:v1 -->"
+
+
+def _truncate(text: str, n: int) -> str:
+    if len(text) <= n:
+        return text
+    return text[: n - 1] + "…"
+
+
+def _escape_md(text: str | None) -> str:
+    """Defang `text` for use in a markdown table cell or inline context."""
+    if text is None:
+        return ""
+    cleaned = "".join(ch if ch >= " " else " " for ch in str(text))
+    # Backtick: would break out of code spans.
+    cleaned = cleaned.replace("`", "ʼ")
+    cleaned = (
+        cleaned.replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+    )
+    return cleaned
+
+
+def _escape_code(text: str | None) -> str:
+    """Defang content meant to live inside backticks or <code>...</code> HTML.
+
+    Strips backticks (would close a code span), escapes < and > so the
+    string is safe inside an HTML element, and removes control chars.
+    """
+    if text is None:
+        return ""
+    cleaned = "".join(ch if ch >= " " else " " for ch in str(text))
+    cleaned = cleaned.replace("`", "ʼ")
+    cleaned = cleaned.replace("<", "&lt;").replace(">", "&gt;")
+    return cleaned
 
 
 def render(aggregate: dict[str, Any]) -> str:
@@ -43,15 +85,27 @@ def render(aggregate: dict[str, Any]) -> str:
         crit = report.get("critical_count", 0)
         warn = report.get("warning_count", 0)
         status = "❌ fail" if crit else "✅ pass"
-        notable = ""
+
+        notable_op = ""
+        notable_msg = ""
         for issue in report.get("issues", []):
             if issue.get("severity") == "critical":
-                notable = f"`{issue.get('operator', '?')}`: {issue.get('message', '')}"
+                notable_op = issue.get("operator", "?")
+                notable_msg = issue.get("message", "")
                 break
-        if not notable and report.get("issues"):
+        if not notable_op and report.get("issues"):
             first = report["issues"][0]
-            notable = f"`{first.get('operator', '?')}`: {first.get('message', '')}"
-        lines.append(f"| `{path}` | {status} | {crit} | {warn} | {_truncate(notable, 80)} |")
+            notable_op = first.get("operator", "?")
+            notable_msg = first.get("message", "")
+        if notable_op:
+            notable = f"`{_escape_code(notable_op)}`: {_escape_md(notable_msg)}"
+        else:
+            notable = ""
+
+        lines.append(
+            f"| `{_escape_code(path)}` | {status} | {crit} | {warn} | "
+            f"{_truncate(notable, 80)} |"
+        )
 
     lines.append("")
     # Per-file details
@@ -60,28 +114,24 @@ def render(aggregate: dict[str, Any]) -> str:
         report = entry.get("report", {})
         if not report.get("issues"):
             continue
-        lines.append(f"<details><summary>Details for <code>{path}</code></summary>")
+        lines.append(
+            "<details><summary>Details for " f"<code>{_escape_code(path)}</code></summary>"
+        )
         lines.append("")
         lines.append("| Severity | Node | Operator | Issue | Fix |")
         lines.append("| --- | --- | --- | --- | --- |")
         for issue in report["issues"]:
             sev = issue.get("severity", "?").upper()
-            node = issue.get("node_name", "")
-            op = issue.get("operator", "")
-            msg = _truncate(issue.get("message", ""), 120).replace("|", "\\|")
-            rem = _truncate(issue.get("remediation", ""), 120).replace("|", "\\|")
+            node = _escape_code(issue.get("node_name", ""))
+            op = _escape_code(issue.get("operator", ""))
+            msg = _truncate(_escape_md(issue.get("message", "")), 120)
+            rem = _truncate(_escape_md(issue.get("remediation", "")), 120)
             lines.append(f"| {sev} | `{node}` | `{op}` | {msg} | {rem} |")
         lines.append("")
         lines.append("</details>")
         lines.append("")
 
     return "\n".join(lines)
-
-
-def _truncate(text: str, n: int) -> str:
-    if len(text) <= n:
-        return text
-    return text[: n - 1] + "…"
 
 
 def main(argv: list[str] | None = None) -> int:

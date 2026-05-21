@@ -64,7 +64,17 @@ runs:
 
     - name: install trtcheck
       shell: bash
-      run: pip install --quiet "trtcheck==${{ inputs.version }}"
+      env:
+        TRTCHECK_VERSION: ${{ inputs.version }}
+      run: |
+        # Refuse anything that is not a strict semver. Stops a caller from
+        # smuggling shell metacharacters or a typosquat pin through the
+        # version input.
+        if [[ ! "$TRTCHECK_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::trtcheck action: rejected invalid version '$TRTCHECK_VERSION'"
+          exit 2
+        fi
+        pip install --quiet "trtcheck==$TRTCHECK_VERSION"
 
     - name: discover and analyze
       id: run
