@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any
 
 import onnx
+
+from trtcheck.plugins import Fixer
 
 
 @dataclass
@@ -31,12 +33,6 @@ class FixApplied:
             "target": self.target,
             "description": self.description,
         }
-
-
-class Fixer(Protocol):
-    name: str
-
-    def fix(self, model: onnx.ModelProto) -> list[FixApplied]: ...
 
 
 def apply_all(

@@ -1,16 +1,11 @@
-"""Reporter plugins. Each takes an AnalysisReport and returns a string."""
+"""Reporter plugins.
+
+The `Reporter` Protocol lives in `trtcheck.plugins`; this module
+re-exports it for back-compat.
+"""
 
 from __future__ import annotations
 
-from typing import Protocol
-
-from trtcheck.types import AnalysisReport
-
-
-class Reporter(Protocol):
-    name: str
-
-    def render(self, report: AnalysisReport) -> str: ...
-
+from trtcheck.plugins import Reporter
 
 __all__ = ["Reporter"]
