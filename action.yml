@@ -30,7 +30,7 @@ inputs:
   source-path:
     description: 'Install trtcheck from this local path instead of PyPI. Used by selftest.'
     required: false
-    default: '
+    default: ''
   changed-only:
     description: 'Limit analysis to files changed in this PR (true/false)'
     required: false
