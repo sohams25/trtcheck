@@ -1,0 +1,80 @@
+name: 'trtcheck'
+description: 'Pre-flight ONNX to TensorRT compatibility check for pull requests'
+author: 'sohams25'
+
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  version:
+    description: 'Pinned trtcheck PyPI version'
+    required: false
+    default: '0.4.0'
+  target-trt:
+    description: 'TensorRT version to check against (e.g. 10.3)'
+    required: false
+    default: '10.3'
+  severity:
+    description: 'Minimum severity included in the report (critical, warning, info)'
+    required: false
+    default: 'warning'
+  fail-on:
+    description: 'When to fail the check (critical, warning, never)'
+    required: false
+    default: 'critical'
+  paths:
+    description: 'Glob of ONNX files to consider'
+    required: false
+    default: '**/*.onnx'
+  changed-only:
+    description: 'Limit analysis to files changed in this PR (true/false)'
+    required: false
+    default: 'true'
+  base-ref:
+    description: 'Base ref to diff against. Defaults to the PR base sha.'
+    required: false
+    default: ''
+
+outputs:
+  report-json:
+    description: 'Path to the aggregated JSON report'
+    value: ${{ steps.run.outputs.report-json }}
+  comment-md:
+    description: 'Path to the rendered sticky-comment markdown'
+    value: ${{ steps.run.outputs.comment-md }}
+  critical-count:
+    description: 'Number of critical issues across all analyzed files'
+    value: ${{ steps.run.outputs.critical-count }}
+  warning-count:
+    description: 'Number of warnings across all analyzed files'
+    value: ${{ steps.run.outputs.warning-count }}
+  status:
+    description: 'Overall status: pass or fail (per fail-on policy)'
+    value: ${{ steps.run.outputs.status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: set up python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: install trtcheck
+      shell: bash
+      run: pip install --quiet "trtcheck==${{ inputs.version }}"
+
+    - name: discover and analyze
+      id: run
+      shell: bash
+      env:
+        INPUT_TARGET_TRT: ${{ inputs.target-trt }}
+        INPUT_SEVERITY: ${{ inputs.severity }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_CHANGED_ONLY: ${{ inputs.changed-only }}
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: bash "${{ github.action_path }}/action/run.sh"
