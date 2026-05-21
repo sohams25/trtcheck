@@ -122,3 +122,31 @@ class TestHTMLReporter:
         assert "ok.onnx" in out
         # Verdict text should be positive
         assert "likely" in out.lower() or "no issues" in out.lower()
+
+
+def test_html_reporter_drops_non_http_docs_link() -> None:
+    """A poisoned operator matrix could carry a javascript: URL in docs_link.
+    The HTML reporter must refuse to render anything but http(s) hrefs.
+    """
+    r = AnalysisReport(
+        filename="x.onnx",
+        onnx_ir_version="8",
+        opset_version=17,
+        producer="p",
+        total_nodes=1,
+        issues=[
+            Issue(
+                severity=Severity.CRITICAL,
+                category=CheckCategory.OPERATOR_SUPPORT,
+                node_name="n",
+                operator="Op",
+                message="msg",
+                remediation="fix",
+                docs_link="javascript:alert(1)",
+            )
+        ],
+    )
+    r.derive_verdict()
+    out = HTMLReporter().render(r)
+    assert "javascript:" not in out
+    assert "alert(1)" not in out

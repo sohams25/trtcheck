@@ -113,12 +113,16 @@ class HTMLReporter:
             )
             for issue in report.issues:
                 sev = issue.severity.value
-                docs_cell = (
-                    f'<a href="{html.escape(issue.docs_link)}" '
-                    f'target="_blank" rel="noopener">link</a>'
-                    if issue.docs_link
-                    else ""
-                )
+                # html.escape does not make a URL safe in an href attribute.
+                # Restrict to http(s) so a poisoned operator matrix can't
+                # smuggle in a javascript: or data: URI.
+                if issue.docs_link and issue.docs_link.startswith(("http://", "https://")):
+                    docs_cell = (
+                        f'<a href="{html.escape(issue.docs_link)}" '
+                        f'target="_blank" rel="noopener">link</a>'
+                    )
+                else:
+                    docs_cell = ""
                 body.append(
                     "<tr>"
                     f'<td><span class="sev {sev}">{sev.upper()}</span></td>'
