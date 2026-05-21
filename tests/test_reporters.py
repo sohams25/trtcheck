@@ -182,3 +182,61 @@ def test_html_render_still_includes_fragment_content() -> None:
     full = reporter.render(r)
     fragment = reporter.render_fragment(r)
     assert fragment in full
+
+
+class TestHTMLDiff:
+    def _build(self, name: str, with_issues: bool) -> AnalysisReport:
+        r = AnalysisReport(
+            filename=name,
+            onnx_ir_version="8",
+            opset_version=17,
+            producer="p",
+            total_nodes=3,
+            issues=(
+                [
+                    Issue(
+                        severity=Severity.CRITICAL,
+                        category=CheckCategory.OPERATOR_SUPPORT,
+                        node_name="n4",
+                        operator="SequenceEmpty",
+                        message="msg",
+                        remediation="fix",
+                        docs_link=None,
+                    )
+                ]
+                if with_issues
+                else []
+            ),
+        )
+        return r
+
+    def test_render_diff_returns_complete_document(self) -> None:
+        before = self._build("before.onnx", with_issues=True)
+        after = self._build("after.onnx", with_issues=False)
+        out = HTMLReporter().render_diff(before, after)
+        assert out.lstrip().lower().startswith("<!doctype html")
+        assert "</html>" in out.lower()
+
+    def test_render_diff_has_two_columns(self) -> None:
+        before = self._build("before.onnx", with_issues=True)
+        after = self._build("after.onnx", with_issues=False)
+        out = HTMLReporter().render_diff(before, after)
+        # The layout uses two columns -- look for a flex/grid class marker we'll
+        # define in the impl, and for both filenames in the body.
+        assert "before.onnx" in out
+        assert "after.onnx" in out
+        assert "diff-column" in out  # implementation-defined CSS class
+
+    def test_render_diff_has_no_external_resources(self) -> None:
+        out = HTMLReporter().render_diff(self._build("a.onnx", True), self._build("b.onnx", False))
+        lowered = out.lower()
+        assert "<link " not in lowered
+        assert "<script src=" not in lowered
+
+    def test_render_diff_distinguishes_passing_from_failing(self) -> None:
+        before = self._build("before.onnx", with_issues=True)  # 1 critical -> fail
+        after = self._build("after.onnx", with_issues=False)  # 0 critical -> pass
+        out = HTMLReporter().render_diff(before, after)
+        # Each side surfaces its verdict.
+        assert "conversion will fail" in out.lower()
+        assert "likely to convert" in out.lower()
