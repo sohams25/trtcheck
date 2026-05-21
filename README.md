@@ -191,6 +191,22 @@ If you contribute a new checker, follow the TDD cycle: write the test
 first, confirm it fails, then implement. See `CLAUDE.md` for the full
 project conventions.
 
+## Plugins (v1.0+)
+
+Third-party packages can ship checkers, fixers, and reporters via
+Python entry-points:
+
+```toml
+[project.entry-points."trtcheck.fixers"]
+strip_identity = "your_package.fixers:StripIdentityFixer"
+```
+
+The Protocols live in `trtcheck.plugins`. See
+[`docs/design/plugin-sdk.md`](docs/design/plugin-sdk.md) for the full
+surface and [`examples/trtcheck-extra-fixers/`](examples/trtcheck-extra-fixers/)
+for a worked example. Use `trtcheck --list-plugins` to confirm a plugin
+loaded; `--disable-plugin NAME` filters one out without uninstalling.
+
 ## Roadmap
 
 - HTML diff view with side-by-side columns.

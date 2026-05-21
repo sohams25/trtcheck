@@ -3,6 +3,43 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [1.0.0] - 2026-05-21
+
+First stable release. The public extension API is now frozen; semver
+applies from here onward.
+
+### Added
+- New `trtcheck.plugins` module holding the public `Checker`, `Fixer`,
+  and `Reporter` Protocols. The Protocols are `@runtime_checkable` so the
+  plugin loader can `isinstance`-validate discovered classes.
+- Entry-point discovery: third-party packages can declare plugins under
+  the `trtcheck.checkers`, `trtcheck.fixers`, and `trtcheck.reporters`
+  groups. `trtcheck.plugins.load_plugins()` walks them on Analyzer
+  construction.
+- Per-plugin failure isolation: a checker that raises during analysis is
+  caught and surfaced as a `WARNING` issue instead of killing the run.
+- New CLI flags `--list-plugins` and `--disable-plugin NAME` (repeatable).
+- New `AnalyzerConfig` fields: `discover_entry_point_plugins: bool = True`
+  and `disable_plugins: list[str]`.
+- `examples/trtcheck-extra-fixers/` ships a worked out-of-tree plugin
+  example with project layout, `pyproject.toml`, a trivial fixer, and a
+  walk-through README.
+- `docs/design/plugin-sdk.md` documents the v1.0 surface, discovery
+  semantics, error model, and back-compat policy.
+
+### Changed
+- The existing import paths (`trtcheck.checkers.Checker`,
+  `trtcheck.fixers.Fixer`, `trtcheck.reporters.Reporter`) now re-export
+  from `trtcheck.plugins`. Object identity is preserved; v0.x callers
+  continue to work unchanged. New code should import directly from
+  `trtcheck.plugins`.
+
+### Compatibility
+
+No breaking changes. v0.x callers that import the Protocols, use
+`Analyzer` / `analyze()`, or run the CLI keep working. The CLI surface
+gains flags but does not remove any.
+
 ## [0.6.0] - 2026-05-21
 
 ### Added
