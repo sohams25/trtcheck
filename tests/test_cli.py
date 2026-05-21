@@ -255,3 +255,81 @@ class TestFixMode:
         )
         assert result.exit_code == 0
         assert "no fixes applied" in result.output.lower()
+
+
+class TestListPluginsAndDisable:
+    def test_list_plugins_runs_and_exits_zero(self, runner: CliRunner) -> None:
+        result = runner.invoke(main, ["--list-plugins"])
+        assert result.exit_code == 0
+        # Built-in checkers must show up in the listing.
+        assert "graph_structure" in result.output
+        assert "precision" in result.output
+        # Built-in fixers must also be listed.
+        assert "int64_to_int32" in result.output
+        # Section headers present.
+        assert "checkers" in result.output.lower()
+        assert "fixers" in result.output.lower()
+        assert "reporters" in result.output.lower()
+
+    def test_list_plugins_does_not_require_a_model_argument(
+        self, runner: CliRunner
+    ) -> None:
+        """--list-plugins is informational; it should work without an
+        ONNX path."""
+        result = runner.invoke(main, ["--list-plugins"])
+        assert result.exit_code == 0
+
+    def test_disable_plugin_filters_a_built_in_checker(
+        self, runner: CliRunner, fixture_dir: Path
+    ) -> None:
+        """Disabling a built-in checker should remove its findings from the
+        report. The sequence_empty fixture normally produces critical issues
+        via the operator_support checker; disabling that checker removes
+        them."""
+        result_with = runner.invoke(
+            main,
+            [
+                str(fixture_dir / "failing" / "sequence_empty.onnx"),
+                "--format",
+                "json",
+            ],
+        )
+        result_without = runner.invoke(
+            main,
+            [
+                str(fixture_dir / "failing" / "sequence_empty.onnx"),
+                "--format",
+                "json",
+                "--disable-plugin",
+                "operator_support",
+            ],
+        )
+        import json as _json
+
+        with_data = _json.loads(result_with.output)
+        without_data = _json.loads(result_without.output)
+        # The operator-support checker contributes at least one critical
+        # issue here; disabling it must drop those.
+        op_issues_with = [
+            i for i in with_data["issues"] if i["category"] == "operator_support"
+        ]
+        op_issues_without = [
+            i for i in without_data["issues"] if i["category"] == "operator_support"
+        ]
+        assert op_issues_with, "expected operator_support issues in default run"
+        assert not op_issues_without, "--disable-plugin should remove them"
+
+    def test_disable_plugin_accepts_repeated_flag(
+        self, runner: CliRunner, fixture_dir: Path
+    ) -> None:
+        result = runner.invoke(
+            main,
+            [
+                str(fixture_dir / "clean_minimal.onnx"),
+                "--disable-plugin",
+                "graph_structure",
+                "--disable-plugin",
+                "precision",
+            ],
+        )
+        assert result.exit_code == 0
