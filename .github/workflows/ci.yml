@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: test (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: lint (black + isort)
+        run: |
+          black --check .
+          isort --check-only .
+
+      - name: type check
+        run: mypy trtcheck/
+
+      - name: validate bundled JSON
+        run: |
+          python -c "import json; json.load(open('trtcheck/data/operator_matrix.json'))"
+          python -c "import json; json.load(open('trtcheck/data/remediation_db.json'))"
+
+      - name: run tests
+        run: pytest -v --cov=trtcheck --cov-report=term-missing
+
+      - name: smoke test CLI
+        run: |
+          trtcheck --version
+          trtcheck tests/fixtures/clean_minimal.onnx
+          ! trtcheck tests/fixtures/failing/sequence_empty.onnx
