@@ -91,6 +91,22 @@ a new TensorRT release:
 3. Run the test suite: `pytest tests/test_data_files.py -v`.
 4. Commit both the script change and the regenerated JSON.
 
+### Checking drift against upstream
+
+`tools/check_matrix_drift.py` fetches the official ONNX-TensorRT
+`operators.md` from GitHub and flags any drift against our bundled
+matrix:
+
+```bash
+python tools/check_matrix_drift.py                   # online fetch
+python tools/check_matrix_drift.py --local docs.md   # offline file
+python tools/check_matrix_drift.py --target 10.0     # different TRT col
+```
+
+Exit code 1 (with a line-per-drift summary) when drift is detected, 0
+when the matrix is in sync. Run it before cutting a release to keep the
+matrix honest.
+
 ## Development
 
 ```bash
