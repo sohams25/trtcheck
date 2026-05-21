@@ -62,6 +62,11 @@ def _shape_of(value_info: onnx.ValueInfoProto) -> list[int | str] | None:
     for d in value_info.type.tensor_type.shape.dim:
         if d.dim_param:
             out.append(d.dim_param)
+        elif not d.HasField("dim_value"):
+            # Unnamed dynamic dim -- exporter left it symbolic but did not
+            # give it a name. Treat as symbolic so the rest of the checker
+            # counts it as dynamic.
+            out.append("?")
         else:
             out.append(d.dim_value)
     return out
