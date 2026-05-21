@@ -73,7 +73,6 @@ class TestAnalysisReport:
             total_nodes=42,
             issues=issues,
         )
-        report.recompute_counts()
         assert report.critical_count == 1
         assert report.warning_count == 2
         assert report.info_count == 1
@@ -87,7 +86,6 @@ class TestAnalysisReport:
             total_nodes=1,
             issues=[_make_issue(severity=Severity.CRITICAL)],
         )
-        report.derive_verdict()
         assert report.conversion_likely is False
 
     def test_conversion_likely_true_when_only_warnings_and_info(self) -> None:
@@ -102,7 +100,6 @@ class TestAnalysisReport:
                 _make_issue(severity=Severity.INFO),
             ],
         )
-        report.derive_verdict()
         assert report.conversion_likely is True
 
     def test_estimated_fix_time_grows_with_critical_count(self) -> None:
@@ -122,8 +119,6 @@ class TestAnalysisReport:
             total_nodes=1,
             issues=[_make_issue(severity=Severity.CRITICAL) for _ in range(5)],
         )
-        small.derive_verdict()
-        large.derive_verdict()
         # Both must be non-empty; the heuristic should reflect more work for more issues.
         assert small.estimated_fix_time
         assert large.estimated_fix_time
@@ -138,8 +133,6 @@ class TestAnalysisReport:
             total_nodes=1,
             issues=[_make_issue()],
         )
-        report.recompute_counts()
-        report.derive_verdict()
         payload = json.dumps(report.to_dict())  # must not raise
         decoded = json.loads(payload)
         assert decoded["filename"] == "m.onnx"

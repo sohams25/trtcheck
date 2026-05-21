@@ -24,7 +24,6 @@ def _passing_report() -> AnalysisReport:
         total_nodes=10,
         issues=[],
     )
-    r.derive_verdict()
     return r
 
 
@@ -56,7 +55,6 @@ def _failing_report() -> AnalysisReport:
             ),
         ],
     )
-    r.derive_verdict()
     return r
 
 
@@ -146,7 +144,6 @@ def test_html_reporter_drops_non_http_docs_link() -> None:
             )
         ],
     )
-    r.derive_verdict()
     out = HTMLReporter().render(r)
     assert "javascript:" not in out
     assert "alert(1)" not in out

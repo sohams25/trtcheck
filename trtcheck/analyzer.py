@@ -69,7 +69,6 @@ class Analyzer:
             total_nodes=len(model.graph.node),
             issues=all_issues,
         )
-        report.derive_verdict()
         return report
 
 

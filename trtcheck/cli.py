@@ -44,7 +44,6 @@ def _filter_issues(report: AnalysisReport, minimum: str) -> AnalysisReport:
         estimated_fusions=list(report.estimated_fusions),
         estimated_precision=dict(report.estimated_precision),
     )
-    filtered.derive_verdict()
     return filtered
 
 

@@ -58,7 +58,12 @@ class Issue:
 
 @dataclass
 class AnalysisReport:
-    """Aggregated output of running every checker against an ONNX model."""
+    """Aggregated output of running every checker against an ONNX model.
+
+    Counts and the verdict are derived from `issues` on access. Mutating
+    `issues` is supported; downstream consumers see the recomputed values
+    automatically.
+    """
 
     filename: str
     onnx_ir_version: str
@@ -68,39 +73,36 @@ class AnalysisReport:
     total_nodes: int
     issues: list[Issue] = field(default_factory=list)
 
-    critical_count: int = 0
-    warning_count: int = 0
-    info_count: int = 0
-
     estimated_fusions: list[str] = field(default_factory=list)
     estimated_precision: dict[str, int] = field(default_factory=dict)
 
-    conversion_likely: bool = False
-    estimated_fix_time: str = ""
+    @property
+    def critical_count(self) -> int:
+        return sum(1 for i in self.issues if i.severity is Severity.CRITICAL)
 
-    def recompute_counts(self) -> None:
-        self.critical_count = sum(1 for i in self.issues if i.severity is Severity.CRITICAL)
-        self.warning_count = sum(1 for i in self.issues if i.severity is Severity.WARNING)
-        self.info_count = sum(1 for i in self.issues if i.severity is Severity.INFO)
+    @property
+    def warning_count(self) -> int:
+        return sum(1 for i in self.issues if i.severity is Severity.WARNING)
 
-    def derive_verdict(self) -> None:
-        """Populate `conversion_likely` and `estimated_fix_time` from current issues.
+    @property
+    def info_count(self) -> int:
+        return sum(1 for i in self.issues if i.severity is Severity.INFO)
 
-        Heuristic: any CRITICAL fails the verdict. Fix-time scales with the
-        number of CRITICALs because each typically requires a targeted ONNX
-        export change.
-        """
-        self.recompute_counts()
-        self.conversion_likely = self.critical_count == 0
+    @property
+    def conversion_likely(self) -> bool:
+        return self.critical_count == 0
 
-        if self.critical_count == 0:
-            self.estimated_fix_time = "< 15 minutes" if self.warning_count else "no action needed"
-        elif self.critical_count == 1:
-            self.estimated_fix_time = "15-30 minutes"
-        elif self.critical_count <= 3:
-            self.estimated_fix_time = "1-2 hours"
-        else:
-            self.estimated_fix_time = "half a day or more"
+    @property
+    def estimated_fix_time(self) -> str:
+        """Rough human-readable fix-time estimate, scaled by critical count."""
+        crit = self.critical_count
+        if crit == 0:
+            return "< 15 minutes" if self.warning_count else "no action needed"
+        if crit == 1:
+            return "15-30 minutes"
+        if crit <= 3:
+            return "1-2 hours"
+        return "half a day or more"
 
     def to_dict(self) -> dict[str, Any]:
         return {
