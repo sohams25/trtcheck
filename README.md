@@ -1,20 +1,26 @@
 # trtcheck
 
-Static pre-flight checker for ONNX → TensorRT conversion.
+[![ci](https://github.com/sohams25/trtcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/sohams25/trtcheck/actions/workflows/ci.yml)
+[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+Static pre-flight checker for ONNX to TensorRT conversion.
 
 `trtcheck` reads an ONNX file, runs five independent checkers against it, and
 tells you in seconds whether the model will convert cleanly to a TensorRT
-engine — and if not, what to fix. It runs anywhere Python runs: no TensorRT,
-no CUDA driver, no GPU required.
+engine. If it won't, the report explains what to fix. It runs anywhere
+Python runs: no TensorRT, no CUDA driver, no GPU required.
+
+![trtcheck console output on a failing model](docs/screenshot.svg)
 
 ## Why
 
-The PyTorch → ONNX → TensorRT pipeline fails most of the time on the last
-hop. The errors are cryptic, the iteration loop ("export, wait two minutes,
-read a C++ traceback, google, try again") burns hours per fix.
+The PyTorch -> ONNX -> TensorRT pipeline fails most of the time on the last
+hop. The errors are cryptic and the iteration loop ("export, wait two
+minutes, read a C++ traceback, google, try again") burns hours per fix.
 
 `trtcheck` predicts the failure modes locally so you can correct them
-*before* you ever invoke `trtexec`.
+before invoking `trtexec`.
 
 ## Install
 
@@ -25,7 +31,7 @@ pip install trtcheck
 Or from source:
 
 ```bash
-git clone https://github.com/your-username/trtcheck.git
+git clone https://github.com/sohams25/trtcheck.git
 cd trtcheck
 pip install -e ".[dev]"
 ```
@@ -54,7 +60,7 @@ trtcheck model.onnx --severity critical
 trtcheck before.onnx after.onnx --diff
 ```
 
-Exit code is `1` if conversion is unlikely to succeed, `0` otherwise — wire
+Exit code is `1` if conversion is unlikely to succeed, `0` otherwise. Wire
 that into CI to catch regressions at PR time.
 
 ## What it checks
@@ -63,7 +69,7 @@ that into CI to catch regressions at PR time.
 |--------------------|---------|
 | operator support   | Ops missing or partial in the target TRT version (e.g. `SequenceEmpty`, `GroupNormalization` on TRT 8.x) |
 | precision          | UINT8/FLOAT64/STRING inputs, INT64 weights, BF16 on older targets |
-| dynamic shapes     | Multiple symbolic dims on inputs (TRT can build but won't optimize well) |
+| dynamic shapes     | Multiple symbolic dims on inputs |
 | control flow       | `Loop` with runtime trip count, nested `Loop`, `If`, `Scan` |
 | graph structure    | Empty outputs, duplicate node names, oversized constants |
 
@@ -72,16 +78,13 @@ Each finding includes a specific remediation, not just "this is bad."
 ## How the operator matrix is maintained
 
 The TRT-version-to-operator support table lives in
-`trtcheck/data/operator_matrix.json` and is hand-curated. To refresh it for
+`trtcheck/data/operator_matrix.json` and is hand curated. To refresh it for
 a new TensorRT release:
 
 1. Edit `tools/build_operator_matrix.py` (the source of truth).
 2. Run `python tools/build_operator_matrix.py` to regenerate the JSON.
 3. Run the test suite: `pytest tests/test_data_files.py -v`.
 4. Commit both the script change and the regenerated JSON.
-
-The script is intentionally outside the package — the JSON is the artifact
-that ships with the wheel.
 
 ## Development
 
@@ -91,7 +94,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Tests (47 passing)
+# Tests
 ./scripts/run-tests.sh
 
 # Type check
@@ -107,12 +110,13 @@ project conventions.
 
 ## Roadmap
 
-- `--fix` auto-rewrite for the simpler cases (UINT8 → FP32 cast insertion,
-  INT64 → INT32 weight rewriting). Deferred from v0.1 to keep the static
-  pass and the rewrite pass in clearly separate code paths.
-- HTML diff view that highlights what changed between two reports.
+- `--fix` auto-rewrite for the simpler cases (UINT8 -> FP32 cast insertion,
+  INT64 -> INT32 weight rewriting).
+- HTML diff view with side-by-side columns.
 - Quarterly refresh tooling driven by NVIDIA release notes.
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).
