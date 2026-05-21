@@ -2,10 +2,12 @@
 
 [![ci](https://github.com/sohams25/trtcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/sohams25/trtcheck/actions/workflows/ci.yml)
 [![pypi](https://img.shields.io/pypi/v/trtcheck.svg)](https://pypi.org/project/trtcheck/)
+[![docs](https://img.shields.io/badge/docs-mkdocs--material-blue)](https://sohams25.github.io/trtcheck/)
 [![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Static pre-flight checker for ONNX to TensorRT conversion.
+Full docs at <https://sohams25.github.io/trtcheck/>.
 
 `trtcheck` reads an ONNX file, runs five independent checkers against it, and
 tells you in seconds whether the model will convert cleanly to a TensorRT
