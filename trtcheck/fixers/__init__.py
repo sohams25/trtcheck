@@ -61,11 +61,13 @@ def default_fixers() -> list[Fixer]:
     from trtcheck.fixers.float64_to_float32 import Float64ToFloat32Fixer
     from trtcheck.fixers.int64_to_int32 import Int64ToInt32Fixer
     from trtcheck.fixers.uint8_input import Uint8InputFixer
+    from trtcheck.fixers.upsample_to_resize import UpsampleToResizeFixer
 
     return [
         Int64ToInt32Fixer(),
         Float64ToFloat32Fixer(),
         DropDropoutFixer(),
+        UpsampleToResizeFixer(),
         Uint8InputFixer(),
     ]
 
