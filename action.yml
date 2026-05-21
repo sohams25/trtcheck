@@ -27,6 +27,10 @@ inputs:
     description: 'Glob of ONNX files to consider'
     required: false
     default: '**/*.onnx'
+  source-path:
+    description: 'Install trtcheck from this local path instead of PyPI. Used by selftest.'
+    required: false
+    default: '
   changed-only:
     description: 'Limit analysis to files changed in this PR (true/false)'
     required: false
@@ -66,7 +70,13 @@ runs:
       shell: bash
       env:
         TRTCHECK_VERSION: ${{ inputs.version }}
+        TRTCHECK_SOURCE: ${{ inputs.source-path }}
       run: |
+        if [[ -n "$TRTCHECK_SOURCE" ]]; then
+          # Local install path. Useful for the bundled selftest workflow.
+          pip install --quiet "$TRTCHECK_SOURCE"
+          exit 0
+        fi
         # Refuse anything that is not a strict semver. Stops a caller from
         # smuggling shell metacharacters or a typosquat pin through the
         # version input.

@@ -27,6 +27,7 @@ jobs:
           paths: "tests/fixtures/failing/*.onnx"
           changed-only: "false"
           fail-on: "critical"
+          source-path: "."
 
       - name: assert failing-fixture run flagged criticals
         run: |
@@ -46,6 +47,7 @@ jobs:
           paths: "tests/fixtures/clean_minimal.onnx"
           changed-only: "false"
           fail-on: "critical"
+          source-path: "."
 
       - name: assert clean fixture passes
         run: |

@@ -3,7 +3,10 @@ name: release
 on:
   push:
     tags:
-      - "v*"
+      # Match strict semver tags only (v0.1.0). Excludes floating tags
+      # like 'v0' or 'v0.4' which are moved on every release and would
+      # otherwise re-trigger the publish workflow.
+      - "v*.*.*"
   workflow_dispatch:
 
 jobs:
