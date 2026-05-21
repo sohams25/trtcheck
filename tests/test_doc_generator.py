@@ -27,14 +27,24 @@ def _matrix(*ops: tuple[str, dict]) -> dict:
 class TestRenderOperator:
     def test_includes_op_name_as_h1(self) -> None:
         entry = {
-            "support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}
+            "support": {
+                "8.0": "supported",
+                "8.6": "supported",
+                "10.0": "supported",
+                "10.3": "supported",
+            }
         }
         md = render_operator("Conv", entry, versions=["8.0", "8.6", "10.0", "10.3"])
         assert md.splitlines()[0] == "# Conv"
 
     def test_support_table_has_row_per_version(self) -> None:
         entry = {
-            "support": {"8.0": "not_supported", "8.6": "partial", "10.0": "supported", "10.3": "supported"}
+            "support": {
+                "8.0": "not_supported",
+                "8.6": "partial",
+                "10.0": "supported",
+                "10.3": "supported",
+            }
         }
         md = render_operator("Mish", entry, versions=["8.0", "8.6", "10.0", "10.3"])
         for v in ["8.0", "8.6", "10.0", "10.3"]:
@@ -45,7 +55,12 @@ class TestRenderOperator:
 
     def test_notes_section_present_when_set(self) -> None:
         entry = {
-            "support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"},
+            "support": {
+                "8.0": "supported",
+                "8.6": "supported",
+                "10.0": "supported",
+                "10.3": "supported",
+            },
             "notes": "Full support. NCHW format.",
         }
         md = render_operator("Conv", entry, versions=["8.0", "8.6", "10.0", "10.3"])
@@ -53,7 +68,12 @@ class TestRenderOperator:
 
     def test_limitations_render_as_bullets(self) -> None:
         entry = {
-            "support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"},
+            "support": {
+                "8.0": "supported",
+                "8.6": "supported",
+                "10.0": "supported",
+                "10.3": "supported",
+            },
             "limitations": ["3D Conv requires TRT 8.6+", "asymmetric padding handled separately"],
         }
         md = render_operator("Conv", entry, versions=["8.0", "8.6", "10.0", "10.3"])
@@ -62,7 +82,12 @@ class TestRenderOperator:
 
     def test_remediation_renders_when_set(self) -> None:
         entry = {
-            "support": {"8.0": "not_supported", "8.6": "not_supported", "10.0": "not_supported", "10.3": "not_supported"},
+            "support": {
+                "8.0": "not_supported",
+                "8.6": "not_supported",
+                "10.0": "not_supported",
+                "10.3": "not_supported",
+            },
             "remediation": "Replace List[Tensor] with torch.stack().",
         }
         md = render_operator("SequenceEmpty", entry, versions=["8.0", "8.6", "10.0", "10.3"])
@@ -70,7 +95,12 @@ class TestRenderOperator:
 
     def test_github_issue_link_renders(self) -> None:
         entry = {
-            "support": {"8.0": "not_supported", "8.6": "not_supported", "10.0": "not_supported", "10.3": "not_supported"},
+            "support": {
+                "8.0": "not_supported",
+                "8.6": "not_supported",
+                "10.0": "not_supported",
+                "10.3": "not_supported",
+            },
             "github_issue": "https://github.com/onnx/onnx-tensorrt/issues/1044",
         }
         md = render_operator("SequenceEmpty", entry, versions=["8.0", "8.6", "10.0", "10.3"])
@@ -80,8 +110,28 @@ class TestRenderOperator:
 class TestRenderIndex:
     def test_index_lists_every_operator(self) -> None:
         matrix = _matrix(
-            ("Conv", {"support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}}),
-            ("Relu", {"support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}}),
+            (
+                "Conv",
+                {
+                    "support": {
+                        "8.0": "supported",
+                        "8.6": "supported",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            ),
+            (
+                "Relu",
+                {
+                    "support": {
+                        "8.0": "supported",
+                        "8.6": "supported",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            ),
         )
         md = render_index(matrix)
         assert "Conv" in md
@@ -92,9 +142,39 @@ class TestRenderIndex:
 
     def test_index_is_alphabetically_sorted(self) -> None:
         matrix = _matrix(
-            ("Relu", {"support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}}),
-            ("Conv", {"support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}}),
-            ("Add", {"support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}}),
+            (
+                "Relu",
+                {
+                    "support": {
+                        "8.0": "supported",
+                        "8.6": "supported",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            ),
+            (
+                "Conv",
+                {
+                    "support": {
+                        "8.0": "supported",
+                        "8.6": "supported",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            ),
+            (
+                "Add",
+                {
+                    "support": {
+                        "8.0": "supported",
+                        "8.6": "supported",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            ),
         )
         md = render_index(matrix)
         # Order in the index should be sorted regardless of dict insertion order.
@@ -107,8 +187,28 @@ class TestRenderIndex:
 class TestBuild:
     def test_build_writes_one_file_per_operator_plus_index(self, tmp_path: Path) -> None:
         matrix = _matrix(
-            ("Conv", {"support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}}),
-            ("Mish", {"support": {"8.0": "not_supported", "8.6": "partial", "10.0": "supported", "10.3": "supported"}}),
+            (
+                "Conv",
+                {
+                    "support": {
+                        "8.0": "supported",
+                        "8.6": "supported",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            ),
+            (
+                "Mish",
+                {
+                    "support": {
+                        "8.0": "not_supported",
+                        "8.6": "partial",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            ),
         )
         matrix_path = tmp_path / "matrix.json"
         matrix_path.write_text(json.dumps(matrix))
@@ -120,7 +220,17 @@ class TestBuild:
 
     def test_build_is_idempotent(self, tmp_path: Path) -> None:
         matrix = _matrix(
-            ("Conv", {"support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}})
+            (
+                "Conv",
+                {
+                    "support": {
+                        "8.0": "supported",
+                        "8.6": "supported",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            )
         )
         matrix_path = tmp_path / "matrix.json"
         matrix_path.write_text(json.dumps(matrix))
@@ -142,7 +252,17 @@ class TestBuild:
         (out_dir / "Stale.md").write_text("# leftover")
 
         matrix = _matrix(
-            ("Conv", {"support": {"8.0": "supported", "8.6": "supported", "10.0": "supported", "10.3": "supported"}})
+            (
+                "Conv",
+                {
+                    "support": {
+                        "8.0": "supported",
+                        "8.6": "supported",
+                        "10.0": "supported",
+                        "10.3": "supported",
+                    }
+                },
+            )
         )
         matrix_path = tmp_path / "matrix.json"
         matrix_path.write_text(json.dumps(matrix))
