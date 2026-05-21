@@ -31,6 +31,8 @@ class Float64ToFloat32Fixer:
             if init.data_type != TensorProto.DOUBLE:
                 continue
             arr = numpy_helper.to_array(init)
+            if arr.size == 0:
+                continue
             if not np.all(np.isfinite(arr)):
                 continue
             if np.max(np.abs(arr)) > _FP32_MAX:

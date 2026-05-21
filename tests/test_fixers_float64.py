@@ -52,3 +52,16 @@ class TestFloat64ToFloat32:
     def test_clean_model_emits_no_fixes(self, clean_model: onnx.ModelProto) -> None:
         _, applied = apply_all(clean_model, [Float64ToFloat32Fixer()])
         assert applied == []
+
+
+def test_empty_initializer_is_skipped() -> None:
+    """An empty FLOAT64 initializer must not crash the fixer."""
+    inp = helper.make_tensor_value_info("input", TensorProto.FLOAT, [1, 4])
+    out = helper.make_tensor_value_info("output", TensorProto.FLOAT, [1, 4])
+    empty = numpy_helper.from_array(np.array([], dtype=np.float64), name="empty")
+    ident = helper.make_node("Identity", ["input"], ["output"], name="ident")
+    graph = helper.make_graph([ident], "m", [inp], [out], initializer=[empty])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+    model.ir_version = 8
+    _, applied = apply_all(model, [Float64ToFloat32Fixer()])
+    assert applied == []
