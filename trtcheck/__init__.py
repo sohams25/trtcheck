@@ -3,7 +3,7 @@
 from trtcheck.analyzer import Analyzer, AnalyzerConfig, analyze
 from trtcheck.types import AnalysisReport, CheckCategory, Issue, Severity
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = [
     "Analyzer",
     "AnalyzerConfig",

@@ -3,6 +3,20 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [0.1.1] - 2026-05-21
+
+### Added
+- `--force` flag to overwrite an existing `--output` file.
+- `--max-model-size` flag (default 500 MB) to refuse oversized ONNX files
+  before loading.
+- `HTMLReporter.render_fragment()` for safe composition of multiple
+  reports into one document.
+
+### Changed
+- `AnalysisReport` counts and verdict are now derived properties.
+  Callers no longer need to call `recompute_counts()` or
+  `derive_verdict()` explicitly.
+
 ## [0.1.0] - 2026-05-21
 
 First public release.
