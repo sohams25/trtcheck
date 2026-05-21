@@ -228,22 +228,11 @@ def _run_diff(
             {"before": report_before.to_dict(), "after": report_after.to_dict()},
             indent=2,
         )
-        _emit(payload, output)
+        _emit(payload, output, force=force)
     else:
         if fmt == "html":
-            from trtcheck.reporters.html import HTMLReporter, _CSS
-
-            reporter = HTMLReporter()
-            combined = (
-                '<!doctype html><html><head><meta charset="utf-8">'
-                f"<title>trtcheck diff</title><style>{_CSS}</style>"
-                "</head><body>"
-                + reporter.render_fragment(report_before)
-                + "<hr>"
-                + reporter.render_fragment(report_after)
-                + "</body></html>"
-            )
-            _emit(combined, output)
+            combined = HTMLReporter().render_diff(report_before, report_after)
+            _emit(combined, output, force=force)
         else:
             before_text = _render(report_before, fmt)
             after_text = _render(report_after, fmt)
