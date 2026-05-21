@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trtcheck"
+version = "0.1.0"
+description = "Static pre-flight checker for ONNX -> TensorRT conversion."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Soham", email = "sohams.web@gmail.com" }]
+keywords = ["onnx", "tensorrt", "edge-ai", "static-analysis", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "onnx>=1.15,<2.0",
+    "click>=8.1,<9.0",
+    "rich>=13.5,<14.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "mypy>=1.8",
+    "black>=24.1",
+    "isort>=5.13",
+]
+
+[project.scripts]
+trtcheck = "trtcheck.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/sohams-web/trtcheck"
+Issues = "https://github.com/sohams-web/trtcheck/issues"
+
+[tool.setuptools.packages.find]
+include = ["trtcheck*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+trtcheck = ["data/*.json"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+warn_return_any = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["onnx", "onnx.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"
+markers = [
+    "benchmark: opt-in performance benchmarks (set TRTCHECK_BENCH=1)",
+]
