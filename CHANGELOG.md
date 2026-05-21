@@ -3,6 +3,29 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [0.6.0] - 2026-05-21
+
+### Added
+- Documentation site at <https://sohams25.github.io/trtcheck/> built with
+  mkdocs-material, deployed by `.github/workflows/docs.yml` on pushes that
+  touch `docs/`, `mkdocs.yml`, the operator matrix, or the generator.
+- `tools/build_operator_docs.py` renders one markdown page per operator
+  from `operator_matrix.json`. Idempotent; the workflow's drift check
+  refuses pages that disagree with the matrix.
+- Validation harness scaffolding under `bench/`:
+  - `manifest.yaml` (3 public ONNX urls + 6 bundled fixtures)
+  - `fetch.py` for url-source caching with SHA-256 verification
+  - `score.py` for confusion-matrix scoring against an outcomes file
+  - `tools/validate_bench_manifest.py` schema check
+  - `bench/README.md` for the GPU-required end-to-end flow
+- All five top-level docs pages: index, install, usage, fixers, and the
+  generated operators index.
+
+### Note
+
+No 0.5.0 release was published; the validation harness is tooling-only
+and shipped under this version.
+
 ## [0.4.0] - 2026-05-21
 
 ### Added
