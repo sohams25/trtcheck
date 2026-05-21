@@ -1,0 +1,65 @@
+# trtcheck validation manifest.
+#
+# Each entry describes a model and the outcome `trtexec` is expected to
+# produce. A GPU-equipped operator runs `trtexec --onnx=<model>` against
+# every entry and feeds the outcomes into `bench/score.py`, which compares
+# the live results against the `expected` field below to compute trtcheck's
+# precision/recall.
+#
+# Fields:
+#   name      stable id used as the row key in outcomes files
+#   source    either a https URL (fetched by bench/fetch.py into bench/cache)
+#             or a repo-relative path (used in-place; lets us exercise the
+#             scoring pipeline with the bundled failing fixtures, no network)
+#   expected  one of: convert | fail
+#   reason    short slug; mirrors trtcheck's category vocabulary where it
+#             can ("operator_support", "precision", "dynamic_shapes",
+#             "control_flow", "graph_structure", or "none" for clean models)
+#   sha256    optional; if set, bench/fetch.py verifies the download
+
+models:
+  - name: resnet50_v2
+    source: https://github.com/onnx/models/raw/main/validated/vision/classification/resnet/model/resnet50-v2-7.onnx
+    expected: convert
+    reason: none
+
+  - name: mobilenetv2_1_0
+    source: https://github.com/onnx/models/raw/main/validated/vision/classification/mobilenet/model/mobilenetv2-12.onnx
+    expected: convert
+    reason: none
+
+  - name: yolov8n_static
+    source: https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.onnx
+    expected: convert
+    reason: none
+
+  # Bundled failing fixtures exercise the scoring pipeline offline.
+  - name: bundled_sequence_empty
+    source: tests/fixtures/failing/sequence_empty.onnx
+    expected: fail
+    reason: operator_support
+
+  - name: bundled_uint8_input
+    source: tests/fixtures/failing/uint8_input.onnx
+    expected: fail
+    reason: precision
+
+  - name: bundled_int64_weights
+    source: tests/fixtures/failing/int64_weights.onnx
+    expected: convert
+    reason: precision
+
+  - name: bundled_control_flow_loop
+    source: tests/fixtures/failing/control_flow_loop.onnx
+    expected: fail
+    reason: control_flow
+
+  - name: bundled_fully_dynamic
+    source: tests/fixtures/failing/fully_dynamic.onnx
+    expected: convert
+    reason: dynamic_shapes
+
+  - name: bundled_clean_minimal
+    source: tests/fixtures/clean_minimal.onnx
+    expected: convert
+    reason: none
