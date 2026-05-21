@@ -3,6 +3,14 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [0.2.1] - 2026-05-21
+
+### Changed
+- `--diff --format html` now produces a true side-by-side layout via
+  `HTMLReporter.render_diff()`. Each side wraps a `render_fragment()`
+  output with its filename above; the grid collapses to one column on
+  narrow viewports.
+
 ## [0.2.0] - 2026-05-21
 
 ### Added
