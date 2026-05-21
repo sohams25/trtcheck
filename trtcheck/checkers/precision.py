@@ -46,8 +46,15 @@ class PrecisionChecker:
         return issues
 
     def _check_inputs(self, graph: onnx.GraphProto) -> list[Issue]:
+        # In ONNX opset < 9 initializers are duplicated into graph.input. Skip
+        # those so we don't emit the same finding from both _check_inputs and
+        # _check_initializers (would surface as conflicting Input/Initializer
+        # operator labels for the identical tensor).
+        initializer_names = {init.name for init in graph.initializer}
         issues: list[Issue] = []
         for inp in graph.input:
+            if inp.name in initializer_names:
+                continue
             dtype = inp.type.tensor_type.elem_type
             if dtype == TensorProto.UINT8:
                 issues.append(
