@@ -57,11 +57,17 @@ def apply_all(
 
 def default_fixers() -> list[Fixer]:
     """The built-in fixer pipeline applied by `trtcheck --fix`."""
+    from trtcheck.fixers.drop_dropout import DropDropoutFixer
     from trtcheck.fixers.float64_to_float32 import Float64ToFloat32Fixer
     from trtcheck.fixers.int64_to_int32 import Int64ToInt32Fixer
     from trtcheck.fixers.uint8_input import Uint8InputFixer
 
-    return [Int64ToInt32Fixer(), Float64ToFloat32Fixer(), Uint8InputFixer()]
+    return [
+        Int64ToInt32Fixer(),
+        Float64ToFloat32Fixer(),
+        DropDropoutFixer(),
+        Uint8InputFixer(),
+    ]
 
 
 __all__ = ["Fixer", "FixApplied", "apply_all", "default_fixers"]
