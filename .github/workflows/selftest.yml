@@ -1,0 +1,55 @@
+name: selftest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  action-against-fixtures:
+    name: dogfood action against test fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Run the action against the bundled failing fixtures. We expect it to
+      # fail (exit 1), since the fixtures are intentionally broken.
+      - id: failing
+        continue-on-error: true
+        uses: ./
+        with:
+          paths: "tests/fixtures/failing/*.onnx"
+          changed-only: "false"
+          fail-on: "critical"
+
+      - name: assert failing-fixture run flagged criticals
+        run: |
+          if [[ "${{ steps.failing.outputs.status }}" != "fail" ]]; then
+            echo "::error::Expected failing fixtures to produce status=fail, got '${{ steps.failing.outputs.status }}'"
+            exit 1
+          fi
+          if [[ "${{ steps.failing.outputs.critical-count }}" -lt 1 ]]; then
+            echo "::error::Expected at least 1 critical issue in failing fixtures"
+            exit 1
+          fi
+
+      # Now against the clean fixture: should pass.
+      - id: clean
+        uses: ./
+        with:
+          paths: "tests/fixtures/clean_minimal.onnx"
+          changed-only: "false"
+          fail-on: "critical"
+
+      - name: assert clean fixture passes
+        run: |
+          if [[ "${{ steps.clean.outputs.status }}" != "pass" ]]; then
+            echo "::error::Expected clean fixture to pass, got '${{ steps.clean.outputs.status }}'"
+            exit 1
+          fi

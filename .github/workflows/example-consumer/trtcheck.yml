@@ -1,0 +1,39 @@
+# Workflow A: runs on the PR (read-only fork token), produces a rendered
+# sticky-comment artifact. Does NOT post the comment itself, so it stays
+# safe to run against untrusted fork code.
+name: trtcheck
+
+on:
+  pull_request:
+    paths:
+      - "**/*.onnx"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: trtcheck
+        uses: sohams25/trtcheck@v0
+        with:
+          target-trt: "10.3"
+          fail-on: "critical"
+
+      - name: package comment artifact
+        if: always()
+        run: |
+          mkdir -p comment-artifact
+          cp "${{ steps.trtcheck.outputs.comment-md }}" comment-artifact/body.md
+          echo "${{ github.event.pull_request.number }}" > comment-artifact/pr-number.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trtcheck-comment
+          path: comment-artifact/

@@ -1,0 +1,39 @@
+# Workflow B: triggered by Workflow A completing. Runs on the base repo with
+# pull-requests:write so it can post the sticky comment. Never executes PR
+# code -- only reads the rendered markdown the analyzer produced.
+name: trtcheck-comment
+
+on:
+  workflow_run:
+    workflows: ["trtcheck"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: trtcheck-comment
+          path: artifact
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: post sticky comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=$(cat artifact/pr-number.txt)
+          python3 "${{ github.workspace }}/action/post_comment.py" \
+            --repo "${{ github.repository }}" \
+            --pr "$PR_NUMBER" \
+            --body-file artifact/body.md
