@@ -57,7 +57,8 @@ __all__ = ["Checker", "Fixer", "Reporter", "load_plugins"]
 
 import importlib.metadata
 import logging
-from typing import Iterable
+from importlib.metadata import EntryPoint
+from typing import Any, Iterable
 
 _logger = logging.getLogger("trtcheck.plugins")
 
@@ -66,13 +67,13 @@ _FIXER_GROUP = "trtcheck.fixers"
 _REPORTER_GROUP = "trtcheck.reporters"
 
 
-def _iter_entry_points(group: str) -> Iterable:
+def _iter_entry_points(group: str) -> Iterable[EntryPoint]:
     """Yield entry-points for `group`. Wrapped in a helper so tests can
     monkey-patch it without touching importlib.metadata internals."""
     return importlib.metadata.entry_points(group=group)
 
 
-def _load_one(ep, expected_proto: type) -> object | None:
+def _load_one(ep: Any, expected_proto: type) -> object | None:
     """Load and instantiate a single entry-point. Returns the instance, or
     None if anything fails. Failures are logged at WARNING level and never
     propagate."""
