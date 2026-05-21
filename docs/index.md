@@ -1,0 +1,34 @@
+# trtcheck
+
+Static pre-flight checker for ONNX to TensorRT conversion.
+
+`trtcheck` reads an ONNX file, runs five independent checkers, and tells
+you in seconds whether the model will convert cleanly to a TensorRT engine.
+If it will not, the report explains what to fix. It runs anywhere Python
+runs -- no TensorRT, no CUDA driver, no GPU required.
+
+## Why
+
+The PyTorch -> ONNX -> TensorRT pipeline fails most of the time on the
+last hop. Errors are cryptic; the iteration loop ("export, wait, read a
+C++ traceback, google, try again") burns hours per fix.
+
+`trtcheck` predicts the failure modes locally so you correct them before
+invoking `trtexec`.
+
+## Quick links
+
+- [Install](install.md) -- `pip install trtcheck`
+- [Usage](usage.md) -- CLI flags, examples, CI integration
+- [Fixers](fixers.md) -- what `--fix` rewrites and when it refuses
+- [Operators](operators/index.md) -- per-operator TensorRT support matrix
+
+## What it checks
+
+| Checker | Catches |
+|---|---|
+| operator support | Ops missing or partial in the target TRT version |
+| precision | UINT8 / FLOAT64 / STRING inputs, INT64 weights, BF16 on older targets |
+| dynamic shapes | Multiple symbolic dims on inputs |
+| control flow | `Loop` with runtime trip count, nested `Loop`, `If`, `Scan` |
+| graph structure | Empty outputs, duplicate node names, oversized constants |
