@@ -31,6 +31,16 @@ class UpsampleToResizeFixer:
         graph = model.graph
         applied: list[FixApplied] = []
 
+        # Resize is opset 10+, but `check_model` only accepts empty-string
+        # placeholders for the optional roi/sizes inputs starting at opset 13.
+        # Refuse below that -- the resulting graph would not validate.
+        default_opset = next(
+            (o.version for o in model.opset_import if o.domain in ("", "ai.onnx")),
+            0,
+        )
+        if default_opset < 13:
+            return applied
+
         for idx, node in enumerate(list(graph.node)):
             if node.op_type != "Upsample":
                 continue

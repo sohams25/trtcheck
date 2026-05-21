@@ -17,7 +17,7 @@ def _model_upsample(mode: str = "nearest") -> onnx.ModelProto:
     )
     up = helper.make_node("Upsample", ["input", "scales"], ["output"], name="up_1", mode=mode)
     graph = helper.make_graph([up], "m", [inp], [out], initializer=[scales])
-    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 9)])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
     model.ir_version = 8
     return model
 
@@ -40,6 +40,23 @@ class TestUpsampleToResize:
         resize = next(n for n in new_model.graph.node if n.op_type == "Resize")
         mode_attr = next(a for a in resize.attribute if a.name == "mode")
         assert mode_attr.s.decode() == "linear"
+        onnx.checker.check_model(new_model)
+
+    def test_opset_below_13_is_left_alone(self) -> None:
+        """Resize with empty roi/sizes inputs only validates at opset 13+."""
+        inp = helper.make_tensor_value_info("input", TensorProto.FLOAT, [1, 3, 4, 4])
+        out = helper.make_tensor_value_info("output", TensorProto.FLOAT, [1, 3, 8, 8])
+        scales = numpy_helper.from_array(
+            np.array([1.0, 1.0, 2.0, 2.0], dtype=np.float32), name="scales"
+        )
+        up = helper.make_node(
+            "Upsample", ["input", "scales"], ["output"], name="up_1", mode="nearest"
+        )
+        graph = helper.make_graph([up], "m", [inp], [out], initializer=[scales])
+        old_model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 9)])
+        old_model.ir_version = 8
+        _, applied = apply_all(old_model, [UpsampleToResizeFixer()])
+        assert applied == []
 
     def test_unsupported_mode_is_skipped(self) -> None:
         # Upsample technically only had nearest/linear, but be defensive.
