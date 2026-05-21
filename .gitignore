@@ -47,3 +47,6 @@ report.json
 
 # Optional benchmark inputs (real ONNX models, kept out of git)
 tests/fixtures/benchmark/
+
+# Cron / autonomous-progress state (not part of the published repo)
+.claude/
