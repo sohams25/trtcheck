@@ -7,9 +7,11 @@ import sys
 from pathlib import Path
 
 import click
+import onnx
 
 from trtcheck import __version__
 from trtcheck.analyzer import Analyzer, AnalyzerConfig
+from trtcheck.fixers import apply_all, default_fixers
 from trtcheck.reporters.console import ConsoleReporter
 from trtcheck.reporters.html import HTMLReporter
 from trtcheck.reporters.json import JSONReporter
@@ -129,6 +131,19 @@ def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
     metavar="MB",
     help="Refuse to load ONNX files larger than this (in MB).",
 )
+@click.option(
+    "--fix",
+    "fix_mode",
+    is_flag=True,
+    default=False,
+    help="Apply built-in fixers and write a corrected ONNX file to --output.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="With --fix, print what would change without writing anything.",
+)
 def main(
     models: tuple[Path, ...],
     target_trt: str,
@@ -139,6 +154,8 @@ def main(
     diff: bool,
     force: bool,
     max_model_size: int,
+    fix_mode: bool,
+    dry_run: bool,
 ) -> None:
     """Run trtcheck against one or two ONNX models.
 
@@ -159,6 +176,11 @@ def main(
         raise click.BadParameter("Pass one ONNX file, or use --diff with exactly two files.")
 
     path = models[0]
+
+    if fix_mode:
+        _run_fix(path, output, force, dry_run, max_model_size)
+        return
+
     if not path.exists():
         raise click.ClickException(f"ONNX file not found: {path}")
 
@@ -236,6 +258,48 @@ def _run_diff(
     # the 'before' fixture still fails.
     if not report_after.conversion_likely:
         sys.exit(1)
+
+
+def _run_fix(
+    path: Path,
+    output: Path | None,
+    force: bool,
+    dry_run: bool,
+    max_model_size: int,
+) -> None:
+    if not path.exists():
+        raise click.ClickException(f"ONNX file not found: {path}")
+    size_mb = path.stat().st_size / (1024 * 1024)
+    if size_mb > max_model_size:
+        raise click.ClickException(
+            f"ONNX file is {size_mb:.1f} MB, above the {max_model_size} MB limit."
+        )
+
+    model = onnx.load(str(path))
+    new_model, applied = apply_all(model, default_fixers())
+
+    if not applied:
+        click.echo("no fixes applied -- model unchanged")
+        return
+
+    for fix in applied:
+        click.echo(f"  [{fix.fixer}] {fix.description}")
+
+    if dry_run:
+        click.echo(f"\n{len(applied)} fix(es) would be applied (dry run).")
+        return
+
+    if output is None:
+        raise click.ClickException("--fix requires --output to write the fixed model")
+    if output.resolve() == path.resolve():
+        raise click.ClickException(
+            "refusing to overwrite the input file; choose a different --output"
+        )
+    if output.exists() and not force:
+        raise click.ClickException(f"refusing to overwrite existing file: {output} (use --force)")
+    onnx.checker.check_model(new_model)
+    onnx.save(new_model, str(output))
+    click.echo(f"\n{len(applied)} fix(es) applied. Wrote {output}.")
 
 
 if __name__ == "__main__":
