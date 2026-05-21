@@ -128,3 +128,43 @@ class TestCLI:
         result = runner.invoke(main, [str(tmp_path / "nope.onnx")])
         assert result.exit_code != 0
         assert "not found" in result.output.lower() or "no such" in result.output.lower()
+
+
+def test_output_refuses_to_overwrite_without_force(
+    runner: CliRunner, fixture_dir: Path, tmp_path: Path
+) -> None:
+    out = tmp_path / "existing.json"
+    out.write_text("placeholder")
+    result = runner.invoke(
+        main,
+        [
+            str(fixture_dir / "clean_minimal.onnx"),
+            "--format",
+            "json",
+            "--output",
+            str(out),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "refusing to overwrite" in result.output.lower()
+    assert out.read_text() == "placeholder"
+
+
+def test_force_overwrites_existing_output(
+    runner: CliRunner, fixture_dir: Path, tmp_path: Path
+) -> None:
+    out = tmp_path / "existing.json"
+    out.write_text("placeholder")
+    result = runner.invoke(
+        main,
+        [
+            str(fixture_dir / "clean_minimal.onnx"),
+            "--format",
+            "json",
+            "--output",
+            str(out),
+            "--force",
+        ],
+    )
+    assert result.exit_code == 0
+    assert out.read_text() != "placeholder"

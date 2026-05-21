@@ -55,13 +55,17 @@ def _render(report: AnalysisReport, fmt: str) -> str:
     return ConsoleReporter().render(report)
 
 
-def _emit(text: str, output_path: Path | None) -> None:
+def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
     if output_path is None:
         click.echo(text, nl=False)
         if not text.endswith("\n"):
             click.echo()
-    else:
-        output_path.write_text(text, encoding="utf-8")
+        return
+    if output_path.exists() and not force:
+        raise click.ClickException(
+            f"refusing to overwrite existing file: {output_path} (use --force)"
+        )
+    output_path.write_text(text, encoding="utf-8")
 
 
 @click.command(name="trtcheck", context_settings={"help_option_names": ["-h", "--help"]})
@@ -111,6 +115,12 @@ def _emit(text: str, output_path: Path | None) -> None:
     default=False,
     help="Compare two ONNX files. Requires exactly two model arguments.",
 )
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Overwrite --output even if it already exists.",
+)
 def main(
     models: tuple[Path, ...],
     target_trt: str,
@@ -119,6 +129,7 @@ def main(
     severity: str,
     verbose: bool,
     diff: bool,
+    force: bool,
 ) -> None:
     """Run trtcheck against one or two ONNX models.
 
@@ -132,7 +143,7 @@ def main(
     if diff:
         if len(models) != 2:
             raise click.BadParameter("--diff requires exactly two model arguments")
-        _run_diff(models, target_trt, fmt, output, severity)
+        _run_diff(models, target_trt, fmt, output, severity, force)
         return
 
     if len(models) != 1:
@@ -150,7 +161,7 @@ def main(
     report = _filter_issues(report, effective_severity)
 
     text = _render(report, fmt)
-    _emit(text, output)
+    _emit(text, output, force=force)
 
     if not report.conversion_likely:
         sys.exit(1)
@@ -162,6 +173,7 @@ def _run_diff(
     fmt: str,
     output: Path | None,
     severity: str,
+    force: bool,
 ) -> None:
     before, after = models
     if not before.exists():
