@@ -27,7 +27,7 @@ classifiers = [
 dependencies = [
     "onnx>=1.15,<2.0",
     "click>=8.1,<9.0",
-    "rich>=13.5,<14.0",
+    "rich>=13.5,<16.0",
 ]
 
 [project.optional-dependencies]
