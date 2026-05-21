@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trtcheck-extra-fixers"
+version = "0.1.0"
+description = "Example out-of-tree trtcheck plugin: extra fixers."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Example Author" }]
+dependencies = [
+    "trtcheck>=1.0",
+    "onnx>=1.15,<2.0",
+]
+
+# This is the public extension point. The key is the plugin's `name`
+# (matches the class's `name` attribute); the value is `module:Class`.
+[project.entry-points."trtcheck.fixers"]
+strip_identity = "trtcheck_extras.fixers.strip_identity:StripIdentityFixer"
+
+[tool.setuptools.packages.find]
+where = ["src"]
