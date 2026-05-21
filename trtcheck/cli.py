@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -57,13 +56,13 @@ def _render(report: AnalysisReport, fmt: str) -> str:
     return ConsoleReporter().render(report)
 
 
-def _emit(text: str, output_path: Optional[Path]) -> None:
+def _emit(text: str, output_path: Path | None) -> None:
     if output_path is None:
         click.echo(text, nl=False)
         if not text.endswith("\n"):
             click.echo()
     else:
-        output_path.write_text(text)
+        output_path.write_text(text, encoding="utf-8")
 
 
 @click.command(name="trtcheck", context_settings={"help_option_names": ["-h", "--help"]})
@@ -117,7 +116,7 @@ def main(
     models: tuple[Path, ...],
     target_trt: str,
     fmt: str,
-    output: Optional[Path],
+    output: Path | None,
     severity: str,
     verbose: bool,
     diff: bool,
@@ -146,11 +145,10 @@ def main(
 
     analyzer = Analyzer(AnalyzerConfig(target_trt=target_trt))
     report = analyzer.analyze_path(path)
-    if verbose and severity != "info":
-        # --verbose tightens nothing; it just guarantees info issues are shown
-        # when severity was left at its default. Explicit --severity wins.
-        pass
-    report = _filter_issues(report, severity)
+    # --verbose lowers the threshold to 'info' unless the user explicitly
+    # asked for a stricter --severity. Explicit --severity wins.
+    effective_severity = "info" if verbose else severity
+    report = _filter_issues(report, effective_severity)
 
     text = _render(report, fmt)
     _emit(text, output)
@@ -163,7 +161,7 @@ def _run_diff(
     models: tuple[Path, ...],
     target_trt: str,
     fmt: str,
-    output: Optional[Path],
+    output: Path | None,
     severity: str,
 ) -> None:
     before, after = models
@@ -202,7 +200,10 @@ def _run_diff(
                 output,
             )
 
-    if not (report_before.conversion_likely and report_after.conversion_likely):
+    # The point of --diff is "did my fix work?". Exit based on the *after*
+    # model only -- a passing 'after' must be a passing CI signal even when
+    # the 'before' fixture still fails.
+    if not report_after.conversion_likely:
         sys.exit(1)
 
 
