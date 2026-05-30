@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img"
+     aria-label="trtcheck demo: CONVERSION WILL FAIL on a UINT8 input, then LIKELY TO CONVERT after --fix">
+  <title>trtcheck — animated demo</title>
+  <desc>A 10-second SMIL loop. First the report flags a UINT8 input as
+  critical; then the --fix command applies the built-in uint8_input
+  rewrite and the same model converts cleanly.</desc>
+
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="0%" r="100%">
+      <stop offset="0%"  stop-color="#1a2030"/>
+      <stop offset="100%" stop-color="#0b0e14"/>
+    </radialGradient>
+    <pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#1d2535"/>
+    </pattern>
+
+    <!-- typewriter clips: width animates from 0 to full text width -->
+    <clipPath id="clip-cmd-1">
+      <rect x="0" y="0" width="0" height="22">
+        <animate attributeName="width" values="0;0;310;310;310;310;310;310;310;310"
+                 keyTimes="0;0.04;0.20;0.40;0.50;0.55;0.75;0.80;0.95;1"
+                 dur="10s" repeatCount="indefinite"/>
+      </rect>
+    </clipPath>
+    <clipPath id="clip-cmd-2">
+      <rect x="0" y="0" width="0" height="22">
+        <animate attributeName="width" values="0;0;0;0;0;0;510;510;510;510"
+                 keyTimes="0;0.04;0.20;0.40;0.50;0.55;0.70;0.80;0.95;1"
+                 dur="10s" repeatCount="indefinite"/>
+      </rect>
+    </clipPath>
+  </defs>
+
+  <rect width="1200" height="480" fill="url(#bg)"/>
+  <rect width="1200" height="480" fill="url(#dots)" opacity="0.55"/>
+
+  <!-- ==================== TERMINAL WINDOW ==================== -->
+  <g transform="translate(40, 36)">
+    <rect x="0" y="0" width="1120" height="408" rx="14"
+          fill="#11151e" stroke="#2a3245" stroke-width="1"/>
+    <rect x="0" y="0" width="1120" height="36" rx="14" fill="#171c28"/>
+    <rect x="0" y="18" width="1120" height="18" fill="#171c28"/>
+    <circle cx="22" cy="18" r="7" fill="#ff5f57"/>
+    <circle cx="44" cy="18" r="7" fill="#febc2e"/>
+    <circle cx="66" cy="18" r="7" fill="#28c840"/>
+    <text x="540" y="23" font-family="ui-sans-serif, system-ui, sans-serif"
+          font-size="13" fill="#6f7a90">trtcheck — demo</text>
+
+    <!-- ===== PROMPT 1 ===== -->
+    <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="14">
+      <text x="22" y="74" fill="#5d6781">$</text>
+      <!-- typewriter: the visible text is clipped to a width that animates -->
+      <g clip-path="url(#clip-cmd-1)" transform="translate(38, 56)">
+        <text x="0" y="18" fill="#e6e9ed">trtcheck model.onnx</text>
+      </g>
+    </g>
+
+    <!-- ===== VERDICT PANEL: FAIL (visible 2.0s-5.5s) ===== -->
+    <g transform="translate(22, 94)" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;1;0;0;0;0;0"
+               keyTimes="0;0.18;0.22;0.40;0.52;0.58;0.70;0.85;0.95;1"
+               dur="10s" repeatCount="indefinite"/>
+      <rect x="0" y="0" width="1076" height="76" rx="8"
+            fill="#1a1014" stroke="#ff5c5c" stroke-width="1"/>
+      <rect x="14" y="14" width="200" height="22" rx="4"
+            fill="#3a1419" stroke="#ff5c5c" stroke-width="1"/>
+      <text x="26" y="29" font-family="ui-monospace, monospace" font-size="13"
+            fill="#ff8a8a" font-weight="600">CONVERSION WILL FAIL</text>
+      <text x="14" y="56" font-family="ui-monospace, monospace" font-size="12" fill="#cdd4e2">
+        file: model.onnx
+      </text>
+      <text x="14" y="70" font-family="ui-monospace, monospace" font-size="11" fill="#8a93a3">
+        opset 17  ·  nodes 1  ·  1 critical, 0 warning
+      </text>
+    </g>
+
+    <!-- ===== ISSUE ROW: FAIL (visible 2.8s-5.5s) ===== -->
+    <g transform="translate(22, 184)" opacity="0">
+      <animate attributeName="opacity" values="0;0;0;1;1;0;0;0;0;0"
+               keyTimes="0;0.18;0.26;0.32;0.52;0.58;0.70;0.85;0.95;1"
+               dur="10s" repeatCount="indefinite"/>
+      <text x="0" y="0" font-family="ui-monospace, monospace" font-size="11" fill="#6f7a90">
+        Severity   Node    Operator   Issue                              Fix
+      </text>
+      <line x1="0" y1="8" x2="1076" y2="8" stroke="#2a3245" stroke-width="1"/>
+      <g font-family="ui-monospace, monospace" font-size="12">
+        <text x="0" y="32"  fill="#ff5c5c" font-weight="600">CRITICAL</text>
+        <text x="86" y="32" fill="#cdd4e2">input</text>
+        <text x="158" y="32" fill="#cdd4e2">Input</text>
+        <text x="248" y="32" fill="#cdd4e2">Input 'input' has dtype UINT8;</text>
+        <text x="248" y="50" fill="#cdd4e2">TensorRT accepts only FP32, FP16,</text>
+        <text x="248" y="68" fill="#cdd4e2">INT32, or INT8 as graph inputs.</text>
+        <text x="640" y="32" fill="#4ec9b0">Move the UINT8 → FLOAT conversion</text>
+        <text x="640" y="50" fill="#4ec9b0">into your preprocessing pipeline</text>
+        <text x="640" y="68" fill="#4ec9b0">rather than the model body.</text>
+      </g>
+    </g>
+
+    <!-- ===== PROMPT 2 (visible 5.0s-) ===== -->
+    <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="14">
+      <text x="22" y="290" fill="#5d6781" opacity="0">
+        $
+        <animate attributeName="opacity" values="0;0;0;0;0;0;1;1;1;1"
+                 keyTimes="0;0.20;0.40;0.50;0.54;0.58;0.62;0.80;0.95;1"
+                 dur="10s" repeatCount="indefinite"/>
+      </text>
+      <g clip-path="url(#clip-cmd-2)" transform="translate(38, 272)">
+        <text x="0" y="18" fill="#e6e9ed">trtcheck model.onnx --fix --output fixed.onnx</text>
+      </g>
+    </g>
+
+    <!-- ===== FIX OUTPUT (visible 7.0s-) ===== -->
+    <g transform="translate(22, 312)" opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0;0;0;1;1;1"
+               keyTimes="0;0.20;0.40;0.50;0.60;0.65;0.68;0.70;0.95;1"
+               dur="10s" repeatCount="indefinite"/>
+      <g font-family="ui-monospace, monospace" font-size="13">
+        <text x="16" y="16" fill="#4ec9b0">[uint8_input]</text>
+        <text x="120" y="16" fill="#cdd4e2">promote UINT8 input to FLOAT, drop redundant Cast node.</text>
+        <text x="0"  y="40" fill="#cdd4e2">1 fix applied. Wrote</text>
+        <text x="174" y="40" fill="#76b3ff">fixed.onnx</text>
+        <text x="262" y="40" fill="#cdd4e2">.</text>
+      </g>
+    </g>
+
+    <!-- ===== VERDICT PANEL: PASS (visible 7.8s-) ===== -->
+    <g transform="translate(22, 358)" opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0;0;0;0;1;1"
+               keyTimes="0;0.20;0.40;0.50;0.60;0.65;0.68;0.74;0.78;1"
+               dur="10s" repeatCount="indefinite"/>
+      <rect x="0" y="0" width="200" height="26" rx="4"
+            fill="#0e1f1a" stroke="#4ec9b0" stroke-width="1"/>
+      <text x="12" y="18" font-family="ui-monospace, monospace" font-size="13"
+            fill="#4ec9b0" font-weight="600">LIKELY TO CONVERT</text>
+      <text x="216" y="18" font-family="ui-monospace, monospace" font-size="12"
+            fill="#8a93a3">0 critical · 0 warning · 0 info</text>
+    </g>
+  </g>
+</svg>
