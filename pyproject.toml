@@ -37,6 +37,9 @@ dev = [
     "mypy>=1.8",
     "black>=24.1",
     "isort>=5.13",
+    # bench/score.py and tools/validate_bench_manifest.py parse yaml
+    # manifests; both are imported by tests in collection.
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
