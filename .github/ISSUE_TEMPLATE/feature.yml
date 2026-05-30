@@ -1,0 +1,66 @@
+name: Feature request
+description: A new checker, fixer, reporter, CLI flag, or anything else.
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Concrete failure modes land much faster than open-ended ideas.
+        If you're requesting a new checker or fixer, the strongest
+        version of this issue includes a real `trtexec` error or ONNX
+        export pattern that the proposal would have caught.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      description: What kind of feature is this?
+      options:
+        - New checker (catch a specific failure mode)
+        - New fixer (auto-rewrite a known-safe pattern)
+        - New reporter (output format)
+        - CLI flag or behavior change
+        - GitHub Action improvement
+        - Plugin SDK / extension surface
+        - Documentation
+        - Operator matrix entry
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want
+      description: Describe the feature or behavior change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: |
+        What problem does it solve? What's the workflow today and how
+        does this improve it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Concrete example
+      description: |
+        A real failure mode, sample ONNX graph, `trtexec` error, or
+        export pattern that motivates this. Speculative checks are hard
+        to land without an example.
+      render: text
+
+  - type: textarea
+    id: prior-art
+    attributes:
+      label: Prior art / links
+      description: |
+        NVIDIA docs, ONNX issues, related projects, related issues in
+        this repo, etc.

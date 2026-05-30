@@ -1,0 +1,117 @@
+name: Bug report
+description: Something is wrong or unexpected.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing. The more concrete the repro, the faster this
+        gets fixed.
+
+        If this is a **security** issue, please use the
+        [private advisory form](https://github.com/sohams25/trtcheck/security/advisories/new)
+        instead — not this template.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: A short description of the bug.
+      placeholder: |
+        Running `trtcheck model.onnx` on a UINT8 input model exits 0
+        instead of 1 even though the report says "CONVERSION WILL FAIL".
+    validations:
+      required: true
+
+  - type: input
+    id: trtcheck-version
+    attributes:
+      label: trtcheck version
+      description: Output of `trtcheck --version`.
+      placeholder: "trtcheck, version 1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.12.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other (please describe in the repro)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target-trt
+    attributes:
+      label: Target TensorRT version (`--target-trt`)
+      options:
+        - "10.3 (default)"
+        - "10.0"
+        - "8.6"
+        - "8.0"
+        - other / not specified
+    validations:
+      required: true
+
+  - type: input
+    id: onnx-version
+    attributes:
+      label: onnx package version
+      description: "`pip show onnx | grep Version`"
+      placeholder: "1.17.0"
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command run
+      description: The exact command, including flags.
+      render: bash
+      placeholder: trtcheck model.onnx --target-trt 10.3 --format json
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed output
+      description: Paste the relevant output, traceback, or report excerpt.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output
+      description: What you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: model
+    attributes:
+      label: Model file or reproducer
+      description: |
+        If the bug needs a specific ONNX file, attach it (or a
+        `tests/fixtures/`-style minimal `onnx.helper` reproducer).
+      placeholder: |
+        Attached: bug_repro.onnx
+        Or, to regenerate:
+
+        ```python
+        import onnx, onnx.helper as h
+        # ... minimal graph that triggers the issue
+        ```
