@@ -3,6 +3,22 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [Unreleased]
+
+### Added
+- Scheduled `matrix-drift` GitHub Action (`.github/workflows/matrix-drift.yml`).
+  Runs `tools/check_matrix_drift.py` weekly (Mondays at 04:17 UTC) plus
+  on `workflow_dispatch`. On drift, opens or refreshes a single rolling
+  `[matrix-drift] YYYY-MM-DD` issue with the per-operator diff and a
+  triage recipe. Auto-closes the issue when the matrix is back in sync.
+
+### Fixed
+- `pyyaml` added to `[project.optional-dependencies].dev`. The bench
+  test modules (`tests/test_bench_manifest.py`, `tests/test_bench_score.py`)
+  import yaml transitively via `bench/score.py` and
+  `tools/validate_bench_manifest.py`, so a fresh `pip install -e ".[dev]"`
+  (which is what CI runs) failed the pytest collection step.
+
 ## [1.0.0] - 2026-05-21
 
 First stable release. The public extension API is now frozen; semver
