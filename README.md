@@ -245,7 +245,7 @@ python tools/check_matrix_drift.py
 
 Run the drift check before each release to keep the matrix honest.
 
-## Development
+## Contributing
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -254,13 +254,13 @@ pip install -e ".[dev]"
 ./scripts/run-tests.sh        # full pytest suite
 mypy trtcheck/                # strict type check
 black . && isort .            # format
-
-# build the local docs site
-mkdocs serve
+mkdocs serve                  # local docs site
 ```
 
-TDD is mandatory for new checkers, fixers, and reporters — see
-[`CLAUDE.md`](CLAUDE.md) for the workspace conventions.
+TDD is mandatory for new checkers, fixers, and reporters. The full
+contribution guide — TDD cycle, operator-matrix refresh recipe, plugin
+authoring layout — lives in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Security disclosures: [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
