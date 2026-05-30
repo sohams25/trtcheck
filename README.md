@@ -41,6 +41,10 @@ afternoon on `trtexec`. See [`docs/case-studies/uint8-input.md`](docs/case-studi
 for the full before/after walkthrough — including the auto-fix that
 rewrites this exact pattern into a passing graph.
 
+<p align="center">
+  <img src="assets/demo.svg" alt="trtcheck demo: the UINT8 case before and after --fix" width="100%">
+</p>
+
 ## Install
 
 ```bash
