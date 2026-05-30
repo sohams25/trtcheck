@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img"
+     aria-label="trtcheck — catch ONNX to TensorRT failures before TensorRT does">
+  <title>trtcheck</title>
+  <desc>Static pre-flight checker for ONNX to TensorRT conversion. Shown: the
+  CLI report flagging a UINT8 input that would otherwise crash trtexec.</desc>
+
+  <defs>
+    <!-- subtle radial wash so the eye lands on the wordmark -->
+    <radialGradient id="bg" cx="32%" cy="38%" r="78%">
+      <stop offset="0%"  stop-color="#1a2030"/>
+      <stop offset="100%" stop-color="#0b0e14"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"  stop-color="#76b3ff"/>
+      <stop offset="100%" stop-color="#4ec9b0"/>
+    </linearGradient>
+    <pattern id="dots" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#202737"/>
+    </pattern>
+    <!-- soft glow for the verdict pill -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#dots)" opacity="0.55"/>
+
+  <!-- ============ LEFT COLUMN: WORDMARK + TAGLINE ============ -->
+  <g font-family="ui-monospace, 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace">
+    <!-- nameplate prompt -->
+    <text x="72" y="112" font-size="17" fill="#5d6781">$ trtcheck model.onnx</text>
+
+    <!-- wordmark -->
+    <text x="68" y="220" font-size="118" font-weight="700"
+          fill="#f3f5fa" letter-spacing="-4">trtcheck</text>
+
+    <!-- accent underline -->
+    <rect x="72" y="240" width="288" height="5" rx="2.5" fill="url(#accent)"/>
+
+    <!-- tagline, two lines for breathing room -->
+    <text x="72" y="296" font-size="24" fill="#cdd4e2" font-weight="400"
+          font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+      Catch ONNX → TensorRT failures
+    </text>
+    <text x="72" y="326" font-size="24" fill="#cdd4e2" font-weight="400"
+          font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+      before TensorRT does.
+    </text>
+
+    <!-- under-tagline meta strip (two rows so nothing slides under the terminal) -->
+    <g font-size="13" fill="#8a93a3">
+      <text x="72" y="386">five static checkers</text>
+      <circle cx="216" cy="382" r="2" fill="#3a4256"/>
+      <text x="230" y="386">built-in auto-fixers</text>
+      <text x="72" y="408">JSON · HTML · console</text>
+      <circle cx="234" cy="404" r="2" fill="#3a4256"/>
+      <text x="248" y="408">no GPU required</text>
+    </g>
+
+    <!-- install hint chip -->
+    <g transform="translate(72, 444)">
+      <rect x="0" y="0" width="288" height="42" rx="8"
+            fill="#141a26" stroke="#2a3245" stroke-width="1"/>
+      <text x="18" y="27" font-size="15" fill="#9aa3b5">$</text>
+      <text x="40" y="27" font-size="15" fill="#e6e9ed">pip install trtcheck</text>
+      <text x="226" y="27" font-size="12" fill="#4ec9b0">v1.0</text>
+    </g>
+
+    <!-- pipeline glyph -->
+    <g transform="translate(72, 514)" font-size="12" fill="#6f7a90">
+      <text x="0" y="14">PyTorch</text>
+      <text x="72" y="14" fill="#3a4256">→</text>
+      <text x="88" y="14">ONNX</text>
+      <text x="134" y="14" fill="#3a4256">→</text>
+      <g>
+        <rect x="150" y="-1" width="78" height="18" rx="4" fill="#1a2434" stroke="#4ec9b0"/>
+        <text x="156" y="13" fill="#4ec9b0">trtcheck</text>
+      </g>
+      <text x="236" y="14" fill="#3a4256">→</text>
+      <text x="252" y="14">TensorRT</text>
+    </g>
+  </g>
+
+  <!-- ============ RIGHT COLUMN: TERMINAL MOCKUP ============ -->
+  <g transform="translate(680, 88)">
+    <!-- window chrome -->
+    <rect x="0" y="0" width="544" height="464" rx="12"
+          fill="#11151e" stroke="#2a3245" stroke-width="1"/>
+    <rect x="0" y="0" width="544" height="32" rx="12" fill="#171c28"/>
+    <!-- only top corners rounded for the title bar -->
+    <rect x="0" y="16" width="544" height="16" fill="#171c28"/>
+    <circle cx="18" cy="16" r="6" fill="#ff5f57"/>
+    <circle cx="38" cy="16" r="6" fill="#febc2e"/>
+    <circle cx="58" cy="16" r="6" fill="#28c840"/>
+    <text x="232" y="20" font-family="ui-sans-serif, system-ui, sans-serif"
+          font-size="12" fill="#6f7a90">trtcheck report</text>
+
+    <!-- prompt line -->
+    <g font-family="ui-monospace, 'JetBrains Mono', Menlo, monospace" font-size="13">
+      <text x="20" y="60" fill="#5d6781">$</text>
+      <text x="36" y="60" fill="#e6e9ed">trtcheck model.onnx</text>
+    </g>
+
+    <!-- verdict panel -->
+    <g transform="translate(20, 80)">
+      <rect x="0" y="0" width="504" height="92" rx="8"
+            fill="#1a1014" stroke="#ff5c5c" stroke-width="1"/>
+      <g filter="url(#glow)">
+        <rect x="14" y="14" width="208" height="24" rx="4"
+              fill="#3a1419" stroke="#ff5c5c" stroke-width="1"/>
+        <text x="26" y="31" font-family="ui-monospace, monospace" font-size="13"
+              fill="#ff8a8a" font-weight="600">CONVERSION WILL FAIL</text>
+      </g>
+      <text x="14" y="58" font-family="ui-monospace, monospace" font-size="12" fill="#cdd4e2">
+        file: tests/fixtures/failing/uint8_input.onnx
+      </text>
+      <text x="14" y="76" font-family="ui-monospace, monospace" font-size="12" fill="#8a93a3">
+        opset 17  ·  nodes 1  ·  1 critical, 0 warning
+      </text>
+    </g>
+
+    <!-- table heading -->
+    <g transform="translate(20, 192)" font-family="ui-monospace, monospace" font-size="11">
+      <text x="0" y="0" fill="#6f7a90">Severity   Node    Operator  Issue                       Fix</text>
+      <line x1="0" y1="8" x2="504" y2="8" stroke="#2a3245" stroke-width="1"/>
+    </g>
+
+    <!-- one detailed row -->
+    <g transform="translate(20, 212)" font-family="ui-monospace, monospace" font-size="11">
+      <text x="0" y="14"  fill="#ff5c5c" font-weight="600">CRITICAL</text>
+      <text x="78" y="14" fill="#cdd4e2">input</text>
+      <text x="142" y="14" fill="#cdd4e2">Input</text>
+      <text x="200" y="14" fill="#cdd4e2">Input 'input' has dtype</text>
+      <text x="200" y="30" fill="#cdd4e2">UINT8; TensorRT accepts</text>
+      <text x="200" y="46" fill="#cdd4e2">only FP32, FP16, INT32,</text>
+      <text x="200" y="62" fill="#cdd4e2">or INT8 as graph inputs.</text>
+
+      <text x="378" y="14" fill="#4ec9b0">Move the UINT8→FLOAT</text>
+      <text x="378" y="30" fill="#4ec9b0">conversion into your</text>
+      <text x="378" y="46" fill="#4ec9b0">preprocessing pipeline</text>
+      <text x="378" y="62" fill="#4ec9b0">rather than the model.</text>
+    </g>
+
+    <!-- footer line: fix offer -->
+    <g transform="translate(20, 308)" font-family="ui-monospace, monospace" font-size="12">
+      <text x="0" y="0" fill="#6f7a90">Estimated fix time: 15-30 minutes.</text>
+    </g>
+    <g transform="translate(20, 336)" font-family="ui-monospace, monospace" font-size="13">
+      <text x="0" y="0" fill="#5d6781">$</text>
+      <text x="14" y="0" fill="#e6e9ed">trtcheck model.onnx --fix --output fixed.onnx</text>
+    </g>
+    <g transform="translate(20, 360)" font-family="ui-monospace, monospace" font-size="12">
+      <text x="0" y="0" fill="#cdd4e2">  </text>
+      <text x="14" y="0" fill="#4ec9b0">[uint8_input]</text>
+      <text x="118" y="0" fill="#cdd4e2">promote UINT8 input to FLOAT, drop</text>
+      <text x="118" y="16" fill="#cdd4e2">redundant Cast node.</text>
+    </g>
+    <g transform="translate(20, 408)" font-family="ui-monospace, monospace" font-size="12">
+      <text x="0" y="0" fill="#cdd4e2">1 fix applied. Wrote </text>
+      <text x="156" y="0" fill="#76b3ff">fixed.onnx</text>
+      <text x="240" y="0" fill="#cdd4e2">.</text>
+    </g>
+    <g transform="translate(20, 432)" font-family="ui-monospace, monospace" font-size="12">
+      <rect x="0" y="-12" width="158" height="18" rx="4"
+            fill="#0e1f1a" stroke="#4ec9b0" stroke-width="1"/>
+      <text x="10" y="2" fill="#4ec9b0" font-weight="600">LIKELY TO CONVERT</text>
+    </g>
+  </g>
+
+  <!-- ============ FOOTER STRIP ============ -->
+  <g transform="translate(72, 600)" font-family="ui-sans-serif, system-ui, sans-serif"
+     font-size="13" fill="#5d6781">
+    <text x="0" y="0">github.com/sohams25/trtcheck</text>
+    <text x="1136" y="0" text-anchor="end" fill="#6f7a90">MIT · Python 3.10+</text>
+  </g>
+</svg>
