@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [Unreleased]
+
+### Added
+- Scheduled `matrix-drift` GitHub Action (`.github/workflows/matrix-drift.yml`).
+  Runs `tools/check_matrix_drift.py` weekly (Mondays at 04:17 UTC) plus
+  on `workflow_dispatch`. On drift, opens or refreshes a single rolling
+  `[matrix-drift] YYYY-MM-DD` issue with the per-operator diff and a
+  triage recipe. Auto-closes the issue when the matrix is back in sync.
+
 ## [1.0.0] - 2026-05-21
 
 First stable release. The public extension API is now frozen; semver
