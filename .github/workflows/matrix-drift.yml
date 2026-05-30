@@ -1,0 +1,150 @@
+name: matrix-drift
+
+# Weekly check of trtcheck/data/operator_matrix.json against the upstream
+# onnx-tensorrt operators table. On drift, files (or updates) a tracking
+# issue so Matrix-Keeper has a single source of truth to triage from.
+#
+# The check itself lives at tools/check_matrix_drift.py and exits 1 with a
+# line-per-drift summary when there is drift, 0 when in sync. This workflow
+# is just plumbing around that.
+
+on:
+  schedule:
+    # Mondays at 04:17 UTC -- off-peak, off the :00 mark so we don't share
+    # the request shoulder with every other "weekly Monday morning" cron.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: matrix-drift
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: check operator matrix drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: install runtime deps
+        # No [dev] -- the drift tool only needs onnx + stdlib urllib.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: run drift check
+        id: drift
+        # Don't let `set -e` short-circuit on the intentional non-zero exit.
+        run: |
+          set +e
+          python tools/check_matrix_drift.py > drift.txt 2>&1
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::group::drift output (exit $code)"
+          cat drift.txt
+          echo "::endgroup::"
+
+      - name: upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-drift-report
+          path: drift.txt
+          retention-days: 30
+
+      - name: open or refresh tracking issue
+        if: steps.drift.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          ts="$(date -u +'%Y-%m-%d %H:%M UTC')"
+          today="$(date -u +'%Y-%m-%d')"
+
+          # Body shared between create and update paths.
+          {
+            echo "## Operator matrix drift detected"
+            echo
+            echo "\`tools/check_matrix_drift.py\` found drift between"
+            echo "\`trtcheck/data/operator_matrix.json\` and the upstream"
+            echo "[onnx-tensorrt operators table]("
+            echo "https://github.com/onnx/onnx-tensorrt/blob/main/docs/operators.md)."
+            echo
+            echo "### Findings"
+            echo
+            echo '```'
+            cat drift.txt
+            echo '```'
+            echo
+            echo "### Triage"
+            echo
+            echo "Refresh the bundled matrix with:"
+            echo
+            echo '```bash'
+            echo "\$EDITOR tools/build_operator_matrix.py"
+            echo "python tools/build_operator_matrix.py"
+            echo "pytest tests/test_data_files.py -v"
+            echo "python tools/check_matrix_drift.py    # should now exit 0"
+            echo '```'
+            echo
+            echo "---"
+            echo "Detected at \`${ts}\` by [matrix-drift run](${RUN_URL})."
+          } > body.md
+
+          # Match on a stable title prefix so we keep one rolling issue
+          # instead of accumulating one per week.
+          existing="$(gh issue list \
+            --repo "$REPO" \
+            --state open \
+            --search 'in:title "[matrix-drift]"' \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "$REPO" --body-file body.md
+            gh issue comment "$existing" --repo "$REPO" \
+              --body "Drift still present at \`${ts}\` ([run](${RUN_URL}))."
+            echo "Updated issue #${existing}."
+          else
+            gh issue create \
+              --repo "$REPO" \
+              --title "[matrix-drift] ${today}" \
+              --body-file body.md
+          fi
+
+      - name: close stale tracking issue when matrix is in sync
+        if: steps.drift.outputs.exit_code == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list \
+            --repo "$REPO" \
+            --state open \
+            --search 'in:title "[matrix-drift]"' \
+            --json number \
+            --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" \
+              --body "Matrix back in sync as of $(date -u +'%Y-%m-%d %H:%M UTC') ([run](${RUN_URL})). Closing."
+            gh issue close "$existing" --repo "$REPO" --reason completed
+            echo "Closed issue #${existing}."
+          else
+            echo "No open matrix-drift issue and no drift. Nothing to do."
+          fi
