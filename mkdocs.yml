@@ -35,6 +35,8 @@ nav:
   - Install: install.md
   - Usage: usage.md
   - Fixers: fixers.md
+  - Case studies:
+      - UINT8 input: case-studies/uint8-input.md
   - Operators: operators/index.md
 
 markdown_extensions:
