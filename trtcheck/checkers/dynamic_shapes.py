@@ -67,6 +67,12 @@ def _shape_of(value_info: onnx.ValueInfoProto) -> list[int | str] | None:
             # give it a name. Treat as symbolic so the rest of the checker
             # counts it as dynamic.
             out.append("?")
+        elif d.dim_value < 0:
+            # Several exporters (and TensorRT itself) encode an unknown/dynamic
+            # dimension as a concrete -1 rather than a dim_param. A negative
+            # extent is never a real static size, so treat it as symbolic --
+            # otherwise a [-1, -1, -1, -1] fully dynamic input reads as static.
+            out.append("?")
         else:
             out.append(d.dim_value)
     return out

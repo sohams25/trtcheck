@@ -13,6 +13,7 @@ from __future__ import annotations
 import onnx
 from onnx import TensorProto
 
+from trtcheck._graph import iter_initializers, iter_nodes
 from trtcheck.types import CheckCategory, Issue, Severity
 
 _REMEDIATION_INT64 = (
@@ -43,6 +44,7 @@ class PrecisionChecker:
         issues: list[Issue] = []
         issues.extend(self._check_inputs(model.graph))
         issues.extend(self._check_initializers(model.graph))
+        issues.extend(self._check_internal_double(model.graph))
         return issues
 
     def _check_inputs(self, graph: onnx.GraphProto) -> list[Issue]:
@@ -88,6 +90,23 @@ class PrecisionChecker:
                         _REMEDIATION_STRING,
                     )
                 )
+            elif dtype == TensorProto.INT64:
+                # INT64 network inputs are the single most common real TRT input
+                # problem (token-id / index inputs from NLP & embedding models).
+                # TRT inputs cannot be INT64; the parser casts to INT32, which can
+                # overflow. WARNING (not CRITICAL) to match the INT64-initializer
+                # severity and avoid flipping the verdict on the very common,
+                # usually-convertible token-id pattern.
+                issues.append(
+                    self._issue(
+                        Severity.WARNING,
+                        inp.name,
+                        "Input",
+                        f"Input '{inp.name}' has dtype INT64; TensorRT casts graph "
+                        "inputs to INT32, which can overflow for large index values.",
+                        _REMEDIATION_INT64,
+                    )
+                )
             elif dtype == TensorProto.BFLOAT16:
                 issues.append(
                     self._issue(
@@ -103,7 +122,9 @@ class PrecisionChecker:
 
     def _check_initializers(self, graph: onnx.GraphProto) -> list[Issue]:
         issues: list[Issue] = []
-        for init in graph.initializer:
+        # Walk subgraph initializers too -- an INT64/DOUBLE weight buried in an
+        # If/Loop/Scan body is just as much of a conversion problem.
+        for init, _owner in iter_initializers(graph):
             dtype = init.data_type
             if dtype == TensorProto.INT64:
                 issues.append(
@@ -138,6 +159,49 @@ class PrecisionChecker:
                         _REMEDIATION_BF16,
                     )
                 )
+        return issues
+
+    def _check_internal_double(self, graph: onnx.GraphProto) -> list[Issue]:
+        """Catch FLOAT64 introduced *inside* the graph, not just at the boundary.
+
+        ``_check_inputs`` / ``_check_initializers`` only see the graph's edges.
+        A ``Cast(to=DOUBLE)`` or a ``Constant`` holding a DOUBLE tensor injects
+        double precision into intermediate values, which TensorRT cannot
+        represent anywhere -- exactly the failure mode the module docstring
+        names ("FLOAT64 anywhere"). Scanned across subgraphs too.
+        """
+        issues: list[Issue] = []
+        for node, _owner in iter_nodes(graph):
+            if node.op_type == "Cast":
+                to_attr = next((a for a in node.attribute if a.name == "to"), None)
+                if to_attr is not None and to_attr.i == TensorProto.DOUBLE:
+                    issues.append(
+                        self._issue(
+                            Severity.CRITICAL,
+                            node.name or "<unnamed Cast>",
+                            "Cast",
+                            "Cast targets dtype DOUBLE (FLOAT64); TensorRT has no "
+                            "double-precision support for intermediate tensors.",
+                            _REMEDIATION_DOUBLE,
+                        )
+                    )
+            elif node.op_type == "Constant":
+                for attr in node.attribute:
+                    if (
+                        attr.name == "value"
+                        and attr.type == onnx.AttributeProto.TENSOR
+                        and attr.t.data_type == TensorProto.DOUBLE
+                    ):
+                        issues.append(
+                            self._issue(
+                                Severity.CRITICAL,
+                                node.name or "<unnamed Constant>",
+                                "Constant",
+                                "Constant holds a DOUBLE (FLOAT64) tensor; TensorRT "
+                                "has no double-precision support.",
+                                _REMEDIATION_DOUBLE,
+                            )
+                        )
         return issues
 
     @staticmethod
