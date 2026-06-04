@@ -5,6 +5,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
 ## [Unreleased]
 
+### Added
+- Scheduled `matrix-drift` GitHub Action (`.github/workflows/matrix-drift.yml`).
+  Runs `tools/check_matrix_drift.py` weekly (Mondays at 04:17 UTC) plus
+  on `workflow_dispatch`. On drift, opens or refreshes a single rolling
+  `[matrix-drift] YYYY-MM-DD` issue with the per-operator diff and a
+  triage recipe. Auto-closes the issue when the matrix is back in sync.
+
 ### Fixed
 - **Subgraph blind spot (correctness).** Every checker except control-flow
   scanned only the top-level graph, and control-flow recursed only via the
@@ -27,6 +34,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   ellipsis-truncated, so the exact fix is never dropped.
 - `python -m trtcheck` now works (added `trtcheck/__main__.py`).
 - `pyproject.toml` project URLs pointed at a non-existent GitHub repo.
+- `pyyaml` added to `[project.optional-dependencies].dev`; the bench test
+  modules import it transitively, so a fresh `pip install -e ".[dev]"` (what
+  CI runs) failed pytest collection without it.
 
 ### Security
 - GitHub Action: the `base-ref` input is validated before reaching `git`,
