@@ -15,6 +15,7 @@ import numpy as np
 import onnx
 from onnx import TensorProto, numpy_helper
 
+from trtcheck._graph import iter_subgraphs
 from trtcheck.fixers import FixApplied
 
 _INT32_MIN = -(2**31)
@@ -26,10 +27,22 @@ class Int64ToInt32Fixer:
 
     def fix(self, model: onnx.ModelProto) -> list[FixApplied]:
         applied: list[FixApplied] = []
-        for init in model.graph.initializer:
+        # Descend into If/Loop/Scan subgraphs: an INT64 weight buried in a
+        # branch body blocks conversion just the same.
+        for graph in iter_subgraphs(model.graph):
+            applied.extend(self._fix_graph(graph))
+        return applied
+
+    def _fix_graph(self, graph: onnx.GraphProto) -> list[FixApplied]:
+        applied: list[FixApplied] = []
+        for init in graph.initializer:
             if init.data_type != TensorProto.INT64:
                 continue
             arr = numpy_helper.to_array(init)
+            if arr.size == 0:
+                # Empty initializer is trivially in range; casting is a no-op.
+                # Skip it -- arr.min()/arr.max() on a zero-size array raises.
+                continue
             if arr.min() < _INT32_MIN or arr.max() > _INT32_MAX:
                 # Out-of-range; the user must handle this manually.
                 continue

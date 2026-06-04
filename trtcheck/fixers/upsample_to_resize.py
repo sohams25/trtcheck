@@ -19,6 +19,7 @@ from __future__ import annotations
 import onnx
 from onnx import AttributeProto, helper
 
+from trtcheck._graph import iter_subgraphs
 from trtcheck.fixers import FixApplied
 
 _SAFE_MODES = {"nearest", "linear"}
@@ -28,20 +29,25 @@ class UpsampleToResizeFixer:
     name = "upsample_to_resize"
 
     def fix(self, model: onnx.ModelProto) -> list[FixApplied]:
-        graph = model.graph
-        applied: list[FixApplied] = []
-
         # Resize is opset 10+, but `check_model` only accepts empty-string
         # placeholders for the optional roi/sizes inputs starting at opset 13.
-        # Refuse below that -- the resulting graph would not validate.
+        # Refuse below that -- the resulting graph would not validate. The opset
+        # is a model-level property, so decide once before walking subgraphs.
         default_opset = next(
             (o.version for o in model.opset_import if o.domain in ("", "ai.onnx")),
             0,
         )
         if default_opset < 13:
-            return applied
+            return []
 
-        for idx, node in enumerate(list(graph.node)):
+        applied: list[FixApplied] = []
+        for graph in iter_subgraphs(model.graph):
+            applied.extend(self._fix_graph(graph))
+        return applied
+
+    def _fix_graph(self, graph: onnx.GraphProto) -> list[FixApplied]:
+        applied: list[FixApplied] = []
+        for node in list(graph.node):
             if node.op_type != "Upsample":
                 continue
             if len(node.input) != 2:
