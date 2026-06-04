@@ -169,6 +169,12 @@ class TestInjectionDefense:
         # The original backticks must not survive in a code span.
         assert "`evil`" not in md
 
+    def test_pipe_in_operator_cannot_break_table(self, rc) -> None:
+        # A raw '|' in a code-span table cell would add phantom columns.
+        md = rc.render(self._payload(rc, op="A|B|C"))
+        assert "A|B|C" not in md
+        assert "A│B│C" in md
+
     def test_html_tags_in_node_name_are_entity_escaped(self, rc) -> None:
         md = rc.render(self._payload(rc, msg="<script>alert(1)</script>"))
         # Literal <script> must be escaped to &lt;script&gt;

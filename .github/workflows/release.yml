@@ -9,6 +9,11 @@ on:
       - "v*.*.*"
   workflow_dispatch:
 
+# Least privilege by default. The build job only needs to read the repo; the
+# publish job overrides this with the id-token needed for PyPI trusted publishing.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: build

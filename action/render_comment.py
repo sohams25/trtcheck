@@ -33,7 +33,9 @@ def _escape_md(text: str | None) -> str:
     # Backtick: would break out of code spans.
     cleaned = cleaned.replace("`", "ʼ")
     cleaned = (
-        cleaned.replace("\\", "\\\\")
+        # Ampersand first so the entities we add below aren't double-encoded.
+        cleaned.replace("&", "&amp;")
+        .replace("\\", "\\\\")
         .replace("|", "\\|")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
@@ -54,6 +56,10 @@ def _escape_code(text: str | None) -> str:
     cleaned = "".join(ch if ch >= " " else " " for ch in str(text))
     cleaned = cleaned.replace("`", "ʼ")
     cleaned = cleaned.replace("<", "&lt;").replace(">", "&gt;")
+    # A literal pipe in a code span still breaks a markdown table cell. Use a
+    # vertical-bar lookalike (as we do for backticks) so it is safe both inside
+    # a table backtick span and inside an HTML <code> element.
+    cleaned = cleaned.replace("|", "│")
     return cleaned
 
 
@@ -139,7 +145,8 @@ def main(argv: list[str] | None = None) -> int:
     if not argv:
         print("usage: render_comment.py <aggregate.json>", file=sys.stderr)
         return 2
-    aggregate = json.loads(open(argv[0]).read())
+    with open(argv[0], encoding="utf-8") as fh:
+        aggregate = json.loads(fh.read())
     sys.stdout.write(render(aggregate))
     return 0
 
