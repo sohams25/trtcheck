@@ -93,13 +93,14 @@ report with a specific remediation per issue, fix once, then run
 | Checker | Catches |
 |---|---|
 | **operator support** | Ops missing or partial in the target TRT version (e.g. `SequenceEmpty`, `GroupNormalization` on TRT 8.x) |
-| **precision** | `UINT8` / `FLOAT64` / `STRING` inputs, `INT64` weights, `BFLOAT16` on older targets |
-| **dynamic shapes** | Multiple symbolic dims on graph inputs |
+| **precision** | `UINT8` / `INT64` / `FLOAT64` / `STRING` / `BFLOAT16` graph inputs, `INT64` weights, and `FLOAT64` introduced by a `Cast` or `Constant` anywhere in the graph |
+| **dynamic shapes** | Two or more symbolic input dims, including dynamic dims encoded as a concrete `-1` |
 | **control flow** | `Loop` with runtime trip count, nested `Loop`, `If`, `Scan` |
 | **graph structure** | Empty outputs, duplicate node names, oversized constants |
 
-Each finding includes a specific remediation. Not "this is bad" — what
-to change, where.
+Every check descends into `If` / `Loop` / `Scan` **subgraph bodies** — an
+unsupported op buried in a branch is caught, not waved through. Each finding
+includes a specific remediation. Not "this is bad" — what to change, where.
 
 ## What it auto-fixes
 
