@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import onnx
 
+from trtcheck._graph import iter_nodes, iter_subgraphs
 from trtcheck.fixers import FixApplied
 
 
@@ -20,7 +21,16 @@ class DropDropoutFixer:
     name = "drop_dropout"
 
     def fix(self, model: onnx.ModelProto) -> list[FixApplied]:
-        graph = model.graph
+        applied: list[FixApplied] = []
+        # Rewiring a removed Dropout happens within the graph that owns it, so a
+        # Dropout whose output is captured by another scope (an If/Loop/Scan body
+        # reading it as an outer-scope value) cannot be removed safely from here.
+        # We refuse those, and check the mask model-wide, so descent is sound.
+        for graph in iter_subgraphs(model.graph):
+            applied.extend(self._fix_graph(model, graph))
+        return applied
+
+    def _fix_graph(self, model: onnx.ModelProto, graph: onnx.GraphProto) -> list[FixApplied]:
         applied: list[FixApplied] = []
 
         # Walk a copy of the node list because we mutate graph.node mid-loop.
@@ -29,14 +39,21 @@ class DropDropoutFixer:
                 continue
 
             # The data output is always output[0]. Outputs[1:] are the mask
-            # (opset 12+); if any of them is referenced, refuse.
+            # (opset 12+); if any of them is referenced anywhere in the model
+            # (including other scopes), refuse.
             if len(node.output) > 1:
                 extras = [name for name in node.output[1:] if name]
-                if any(_is_referenced(graph, name, exclude=node) for name in extras):
+                if any(_referenced_in_model(model, name) for name in extras):
                     continue
 
             data_in = node.input[0]
             data_out = node.output[0]
+
+            # If the data output is consumed outside this graph (captured by a
+            # sibling/child subgraph), within-graph rewiring would leave that
+            # edge dangling. Refuse rather than corrupt the model.
+            if _consumed_outside(model, graph, data_out):
+                continue
 
             # Case A: Dropout's data output is a graph output. Promote the
             # producer of data_in to emit data_out directly.
@@ -80,15 +97,35 @@ class DropDropoutFixer:
         return applied
 
 
-def _is_referenced(graph: onnx.GraphProto, name: str, *, exclude: onnx.NodeProto) -> bool:
-    if any(out.name == name for out in graph.output):
-        return True
-    for node in graph.node:
-        if node is exclude:
-            continue
+def _referenced_in_model(model: onnx.ModelProto, name: str) -> bool:
+    """True if `name` is a graph output of any scope or consumed as an input by
+    any node anywhere in the model. (A Dropout never feeds itself, so there is
+    no need to exclude the producing node.)"""
+    for graph in iter_subgraphs(model.graph):
+        if any(out.name == name for out in graph.output):
+            return True
+    for node, _owner in iter_nodes(model.graph):
         if name in node.input:
             return True
     return False
+
+
+def _consumed_outside(model: onnx.ModelProto, graph: onnx.GraphProto, name: str) -> bool:
+    """True if `name` is consumed (or exposed as a graph output) anywhere in the
+    model beyond the owning ``graph``.
+
+    Uses occurrence counting rather than node identity: protobuf's C/upb backend
+    hands back a fresh Python wrapper on every field access, so `is`/`id()`
+    comparisons across two iterations are unreliable. Counting references is
+    identity-free and correct.
+    """
+    in_graph_inputs = sum(inp == name for n in graph.node for inp in n.input)
+    in_model_inputs = sum(inp == name for n, _ in iter_nodes(model.graph) for inp in n.input)
+    if in_model_inputs > in_graph_inputs:
+        return True
+    in_graph_outputs = sum(o.name == name for o in graph.output)
+    in_model_outputs = sum(o.name == name for g in iter_subgraphs(model.graph) for o in g.output)
+    return bool(in_model_outputs > in_graph_outputs)
 
 
 def _name_is_graph_output(graph: onnx.GraphProto, name: str) -> bool:

@@ -17,6 +17,7 @@ import numpy as np
 import onnx
 from onnx import TensorProto, numpy_helper
 
+from trtcheck._graph import iter_subgraphs
 from trtcheck.fixers import FixApplied
 
 _FP32_MAX = np.finfo(np.float32).max
@@ -27,7 +28,13 @@ class Float64ToFloat32Fixer:
 
     def fix(self, model: onnx.ModelProto) -> list[FixApplied]:
         applied: list[FixApplied] = []
-        for init in model.graph.initializer:
+        for graph in iter_subgraphs(model.graph):
+            applied.extend(self._fix_graph(graph))
+        return applied
+
+    def _fix_graph(self, graph: onnx.GraphProto) -> list[FixApplied]:
+        applied: list[FixApplied] = []
+        for init in graph.initializer:
             if init.data_type != TensorProto.DOUBLE:
                 continue
             arr = numpy_helper.to_array(init)
