@@ -8,9 +8,10 @@ from pathlib import Path
 
 import click
 import onnx
+from click import ParameterSource
 
 from trtcheck import __version__
-from trtcheck.analyzer import Analyzer, AnalyzerConfig
+from trtcheck.analyzer import Analyzer, AnalyzerConfig, safe_load
 from trtcheck.fixers import apply_all, default_fixers
 from trtcheck.reporters.console import ConsoleReporter
 from trtcheck.reporters.html import HTMLReporter
@@ -49,12 +50,14 @@ def _filter_issues(report: AnalysisReport, minimum: str) -> AnalysisReport:
     return filtered
 
 
-def _render(report: AnalysisReport, fmt: str) -> str:
+def _render(report: AnalysisReport, fmt: str, *, color: bool = True) -> str:
     if fmt == "json":
         return JSONReporter().render(report)
     if fmt == "html":
         return HTMLReporter().render(report)
-    return ConsoleReporter().render(report)
+    # color=False when writing to a file so the artifact is plain text, not a
+    # soup of raw ANSI escape codes.
+    return ConsoleReporter(color=color).render(report)
 
 
 def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
@@ -67,7 +70,10 @@ def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
         raise click.ClickException(
             f"refusing to overwrite existing file: {output_path} (use --force)"
         )
-    output_path.write_text(text, encoding="utf-8")
+    try:
+        output_path.write_text(text, encoding="utf-8")
+    except OSError as exc:
+        raise click.ClickException(f"could not write to {output_path}: {exc}") from exc
 
 
 @click.command(name="trtcheck", context_settings={"help_option_names": ["-h", "--help"]})
@@ -215,11 +221,15 @@ def main(
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
     # --verbose lowers the threshold to 'info' unless the user explicitly
-    # asked for a stricter --severity. Explicit --severity wins.
-    effective_severity = "info" if verbose else severity
+    # asked for a stricter --severity. Explicit --severity wins -- detect an
+    # explicit value via the parameter source so '--verbose --severity critical'
+    # honours 'critical' instead of being overridden back to 'info'.
+    ctx = click.get_current_context()
+    severity_is_explicit = ctx.get_parameter_source("severity") != ParameterSource.DEFAULT
+    effective_severity = severity if severity_is_explicit else ("info" if verbose else severity)
     report = _filter_issues(report, effective_severity)
 
-    text = _render(report, fmt)
+    text = _render(report, fmt, color=output is None)
     _emit(text, output, force=force)
 
     if not report.conversion_likely:
@@ -266,12 +276,13 @@ def _run_diff(
             combined = HTMLReporter().render_diff(report_before, report_after)
             _emit(combined, output, force=force)
         else:
-            before_text = _render(report_before, fmt)
-            after_text = _render(report_after, fmt)
+            before_text = _render(report_before, fmt, color=output is None)
+            after_text = _render(report_after, fmt, color=output is None)
             sep = "\n" + ("=" * 80) + "\n"
             _emit(
                 f"BEFORE: {before}\n{before_text}\n{sep}AFTER: {after}\n{after_text}",
                 output,
+                force=force,
             )
 
     # The point of --diff is "did my fix work?". Exit based on the *after*
@@ -293,10 +304,19 @@ def _run_fix(
     size_mb = path.stat().st_size / (1024 * 1024)
     if size_mb > max_model_size:
         raise click.ClickException(
-            f"ONNX file is {size_mb:.1f} MB, above the {max_model_size} MB limit."
+            f"ONNX file is {size_mb:.1f} MB, above the {max_model_size} MB limit. "
+            "Raise the limit with --max-model-size."
         )
 
-    model = onnx.load(str(path))
+    # Validate destination before doing work / printing a fix list, so a user
+    # who forgets --output is told immediately rather than after the report.
+    if not dry_run and output is None:
+        raise click.ClickException("--fix requires --output to write the fixed model")
+
+    try:
+        model = safe_load(path)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
     new_model, applied = apply_all(model, default_fixers())
 
     if not applied:
@@ -310,7 +330,7 @@ def _run_fix(
         click.echo(f"\n{len(applied)} fix(es) would be applied (dry run).")
         return
 
-    if output is None:
+    if output is None:  # unreachable: guarded above, but keep mypy + -O happy
         raise click.ClickException("--fix requires --output to write the fixed model")
     if output.resolve() == path.resolve():
         raise click.ClickException(
@@ -318,7 +338,10 @@ def _run_fix(
         )
     if output.exists() and not force:
         raise click.ClickException(f"refusing to overwrite existing file: {output} (use --force)")
-    onnx.checker.check_model(new_model)
+    try:
+        onnx.checker.check_model(new_model)
+    except Exception as exc:  # onnx ValidationError et al.
+        raise click.ClickException(f"applying fixes produced an invalid ONNX model: {exc}") from exc
     onnx.save(new_model, str(output))
     click.echo(f"\n{len(applied)} fix(es) applied. Wrote {output}.")
 

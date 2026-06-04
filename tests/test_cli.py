@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from trtcheck import __version__
 from trtcheck.cli import main
 
 
@@ -18,7 +19,8 @@ class TestCLI:
     def test_version_flag(self, runner: CliRunner) -> None:
         result = runner.invoke(main, ["--version"])
         assert result.exit_code == 0
-        assert "trtcheck" in result.output.lower() or "0.1.0" in result.output
+        assert "trtcheck" in result.output.lower()
+        assert __version__ in result.output
 
     def test_clean_model_exits_zero(self, runner: CliRunner, fixture_dir: Path) -> None:
         result = runner.invoke(main, [str(fixture_dir / "clean_minimal.onnx")])
