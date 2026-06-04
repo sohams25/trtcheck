@@ -38,6 +38,7 @@ nav:
   - Case studies:
       - UINT8 input: case-studies/uint8-input.md
   - Operators: operators/index.md
+  - Plugin SDK: design/plugin-sdk.md
 
 markdown_extensions:
   - admonition

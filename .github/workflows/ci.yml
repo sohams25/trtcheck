@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.11", "3.12"]
+        python: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v6
 
@@ -43,10 +43,12 @@ jobs:
           python -c "import json; json.load(open('trtcheck/data/remediation_db.json'))"
 
       - name: run tests
-        run: pytest -v --cov=trtcheck --cov-report=term-missing
+        run: pytest -v --cov=trtcheck --cov-report=term-missing --cov-fail-under=90
 
-      - name: smoke test CLI
+      - name: smoke test CLI (console script + python -m)
         run: |
           trtcheck --version
+          python -m trtcheck --version
           trtcheck tests/fixtures/clean_minimal.onnx
+          python -m trtcheck tests/fixtures/clean_minimal.onnx
           ! trtcheck tests/fixtures/failing/sequence_empty.onnx
