@@ -15,6 +15,18 @@ if [[ -z "$base" ]]; then
     exit 0
 fi
 
+# Validate the base ref before it ever reaches git. It is concatenated into
+# "$base"...HEAD and passed to git fetch/rev-parse, so a value beginning with
+# '-' (e.g. --output=...) or containing shell/refspec metacharacters would be
+# an option-injection / arbitrary-write primitive. Require a conservative
+# git-ref/sha shape that starts with an alphanumeric (no leading dash). Also
+# reject any '..' sequence so the value can never read as a path-traversal /
+# range-spec trick even if a future use treats it as a path.
+if [[ "$base" == *".."* ]] || [[ ! "$base" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+    echo "diff_changed_files: refusing unsafe base ref: $base" >&2
+    exit 2
+fi
+
 # Make sure we have the base commit locally; in actions/checkout the default
 # fetch-depth=1 means earlier commits are missing.
 if ! git rev-parse --quiet --verify "$base^{commit}" >/dev/null 2>&1; then

@@ -10,7 +10,7 @@ inputs:
   version:
     description: 'Pinned trtcheck PyPI version'
     required: false
-    default: '0.4.0'
+    default: '1.0.0'
   target-trt:
     description: 'TensorRT version to check against (e.g. 10.3)'
     required: false
@@ -73,8 +73,10 @@ runs:
         TRTCHECK_SOURCE: ${{ inputs.source-path }}
       run: |
         if [[ -n "$TRTCHECK_SOURCE" ]]; then
-          # Local install path. Useful for the bundled selftest workflow.
-          pip install --quiet "$TRTCHECK_SOURCE"
+          # Local install path. Useful for the bundled selftest workflow. The
+          # '--' stops pip option parsing so a source-path beginning with '-'
+          # (e.g. --index-url=...) is treated as a positional, not a flag.
+          pip install --quiet -- "$TRTCHECK_SOURCE"
           exit 0
         fi
         # Refuse anything that is not a strict semver. Stops a caller from
@@ -84,7 +86,7 @@ runs:
           echo "::error::trtcheck action: rejected invalid version '$TRTCHECK_VERSION'"
           exit 2
         fi
-        pip install --quiet "trtcheck==$TRTCHECK_VERSION"
+        pip install --quiet -- "trtcheck==$TRTCHECK_VERSION"
 
     - name: discover and analyze
       id: run

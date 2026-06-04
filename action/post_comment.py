@@ -92,7 +92,8 @@ def main(argv: list[str] | None = None) -> int:
         print("post_comment: GITHUB_TOKEN not set", file=sys.stderr)
         return 2
 
-    body = open(args.body_file).read()
+    with open(args.body_file, encoding="utf-8") as fh:
+        body = fh.read()
     if not body.lstrip().startswith(MARKER):
         # Defense in depth: refuse to post a body that lacks the marker.
         # Otherwise we could create comments we can't later find and update.
