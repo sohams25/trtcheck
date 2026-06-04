@@ -7,6 +7,7 @@ from pathlib import Path
 
 import onnx
 
+from trtcheck._graph import count_nodes
 from trtcheck.checkers import Checker
 from trtcheck.checkers.control_flow import ControlFlowChecker
 from trtcheck.checkers.dynamic_shapes import DynamicShapeChecker
@@ -14,6 +15,30 @@ from trtcheck.checkers.graph_structure import GraphStructureChecker
 from trtcheck.checkers.operator_support import OperatorSupportChecker
 from trtcheck.checkers.precision import PrecisionChecker
 from trtcheck.types import AnalysisReport, CheckCategory, Issue, Severity
+
+# Names of the checkers trtcheck ships. A crash in one of these is a bug in
+# trtcheck and must surface loudly; only *third-party plugin* checkers are
+# isolated behind a try/except so one bad plugin can't kill the whole report.
+_BUILTIN_CHECKER_NAMES = frozenset(
+    {"graph_structure", "precision", "operator_support", "dynamic_shapes", "control_flow"}
+)
+
+
+def safe_load(path: Path | str) -> onnx.ModelProto:
+    """``onnx.load`` with parse failures surfaced as a clean ``ValueError``.
+
+    A corrupt, truncated, or non-ONNX file makes ``onnx.load`` raise a raw
+    protobuf ``DecodeError`` (and other low-level errors). trtcheck is meant to
+    run on untrusted models in CI, so every load goes through here and turns
+    those into a single domain error the CLI can present without a traceback.
+    """
+    try:
+        model: onnx.ModelProto = onnx.load(str(path))
+    except Exception as exc:  # protobuf DecodeError, OSError, onnx errors, ...
+        # repr() the path so a crafted filename can't inject terminal escapes
+        # into the error message.
+        raise ValueError(f"could not parse {str(path)!r} as an ONNX model: {exc}") from exc
+    return model
 
 
 @dataclass
@@ -63,7 +88,7 @@ class Analyzer:
                 "Raise the limit via AnalyzerConfig(max_model_size_mb=...) "
                 "or the --max-model-size CLI flag."
             )
-        model = onnx.load(str(path))
+        model = safe_load(path)
         return self.analyze_model(model, filename=str(path))
 
     def analyze_model(
@@ -71,6 +96,13 @@ class Analyzer:
     ) -> AnalysisReport:
         all_issues: list[Issue] = []
         for checker in self.checkers:
+            name = getattr(checker, "name", checker.__class__.__name__)
+            if name in _BUILTIN_CHECKER_NAMES:
+                # Built-in: let exceptions propagate. Masking a crash here as a
+                # fake WARNING would both mislabel a trtcheck bug as a plugin
+                # issue and hide it from tests.
+                all_issues.extend(checker.check(model))
+                continue
             try:
                 all_issues.extend(checker.check(model))
             except Exception as exc:
@@ -78,12 +110,9 @@ class Analyzer:
                     Issue(
                         severity=Severity.WARNING,
                         category=CheckCategory.OPERATOR_SUPPORT,
-                        node_name=f"<plugin: {getattr(checker, 'name', checker.__class__.__name__)}>",
+                        node_name=f"<plugin: {name}>",
                         operator="Plugin",
-                        message=(
-                            f"plugin {getattr(checker, 'name', checker.__class__.__name__)!r} "
-                            f"raised {exc.__class__.__name__}: {exc}"
-                        ),
+                        message=(f"plugin {name!r} raised {exc.__class__.__name__}: {exc}"),
                         remediation=("Disable the plugin with --disable-plugin or uninstall it."),
                         docs_link=None,
                     )
@@ -100,7 +129,9 @@ class Analyzer:
             onnx_ir_version=str(model.ir_version),
             opset_version=opset,
             producer=model.producer_name or "unknown",
-            total_nodes=len(model.graph.node),
+            # Count nodes in subgraphs too -- otherwise the header can report
+            # "5 nodes" while flagging issues found inside If/Loop/Scan bodies.
+            total_nodes=count_nodes(model.graph),
             issues=all_issues,
         )
         return report

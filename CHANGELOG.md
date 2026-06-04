@@ -3,6 +3,49 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [Unreleased]
+
+### Fixed
+- **Subgraph blind spot (correctness).** Every checker except control-flow
+  scanned only the top-level graph, and control-flow recursed only via the
+  `body` attribute. An unsupported op hidden in an `If` / `Loop` / `Scan`
+  branch was reported as "likely to convert". Checkers and fixers now descend
+  into all subgraph bodies through a shared, depth-bounded walker
+  (`trtcheck._graph`).
+- **INT64 graph inputs** are now flagged (the most common real TRT input
+  problem; previously only INT64 *initializers* were caught).
+- **FLOAT64 introduced inside the graph** (via `Cast(to=DOUBLE)` or a `DOUBLE`
+  `Constant`) is now detected, not just FLOAT64 at the boundary.
+- **Dynamic dims encoded as `-1`** are now treated as symbolic, so a
+  fully-dynamic `[-1,-1,-1,-1]` input is no longer read as static.
+- `int64_to_int32` no longer crashes on an empty INT64 initializer.
+- Corrupt / truncated / non-ONNX files now produce a clean error message
+  instead of a raw protobuf traceback (all CLI paths).
+- `--diff` to an existing file now honours `--force` for console/text output.
+- `--format console --output FILE` writes plain text instead of raw ANSI codes.
+- Long, unbroken remediation text in the console table is folded instead of
+  ellipsis-truncated, so the exact fix is never dropped.
+- `python -m trtcheck` now works (added `trtcheck/__main__.py`).
+- `pyproject.toml` project URLs pointed at a non-existent GitHub repo.
+
+### Security
+- GitHub Action: the `base-ref` input is validated before reaching `git`,
+  closing an option-injection / arbitrary-write vector; `pip install` uses
+  `--` to stop option parsing of the version/source-path inputs.
+- Sticky-comment renderer neutralizes `|` (and `&`) in model-derived strings
+  so a hostile operator/node name cannot break out of the markdown table.
+- `release.yml` now declares least-privilege `permissions`.
+- Console/JSON reporters strip control characters and neutralize Rich markup
+  from model-derived strings (the HTML reporter was already escaped).
+
+### Changed
+- Only third-party **plugin** checkers are isolated behind failure handling;
+  exceptions from built-in checkers now propagate (a crash there is a trtcheck
+  bug and should be loud, not silently downgraded to a warning).
+- `total_nodes` in the report now counts nodes inside subgraphs.
+- CI tests Python 3.13 and enforces a 90% coverage floor; the smoke test
+  exercises both the console script and `python -m trtcheck`.
+
 ## [1.0.0] - 2026-05-21
 
 First stable release. The public extension API is now frozen; semver

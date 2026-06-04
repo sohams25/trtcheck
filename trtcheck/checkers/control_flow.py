@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import onnx
 
+from trtcheck._graph import iter_initializers, iter_nodes
 from trtcheck.types import CheckCategory, Issue, Severity
 
 
@@ -27,9 +28,13 @@ class ControlFlowChecker:
 
     def check(self, model: onnx.ModelProto) -> list[Issue]:
         issues: list[Issue] = []
-        # Top-level Loop / If / Scan checks
-        initializer_names = {init.name for init in model.graph.initializer}
-        for node in model.graph.node:
+        # A control-flow op nested inside another subgraph still has to convert,
+        # so walk every subgraph, not just the top level. Trip counts may be
+        # defined in any enclosing scope, so treat the union of all initializer
+        # names as "statically known" -- over-approximating here avoids false
+        # "runtime trip count" warnings for outer-scope constants.
+        initializer_names = {init.name for init, _ in iter_initializers(model.graph)}
+        for node, _graph in iter_nodes(model.graph):
             if node.op_type == "Loop":
                 issues.extend(self._check_loop(node, initializer_names))
             elif node.op_type == "If":
@@ -148,10 +153,6 @@ def _body_subgraph(node: onnx.NodeProto) -> onnx.GraphProto | None:
 
 
 def _contains_op(graph: onnx.GraphProto, op_type: str) -> bool:
-    for node in graph.node:
-        if node.op_type == op_type:
-            return True
-        sub = _body_subgraph(node)
-        if sub is not None and _contains_op(sub, op_type):
-            return True
-    return False
+    # iter_nodes descends through every nested subgraph with a depth bound, so
+    # this can't blow the stack on a pathologically nested model.
+    return any(node.op_type == op_type for node, _ in iter_nodes(graph))

@@ -21,6 +21,7 @@ from typing import Any
 
 import onnx
 
+from trtcheck._graph import iter_nodes
 from trtcheck.types import CheckCategory, Issue, Severity
 
 
@@ -47,7 +48,9 @@ class OperatorSupportChecker:
 
     def check(self, model: onnx.ModelProto) -> list[Issue]:
         issues: list[Issue] = []
-        for node in model.graph.node:
+        # Walk the top-level graph AND every If/Loop/Scan subgraph body: an
+        # unsupported op inside a branch still blocks the TensorRT build.
+        for node, _graph in iter_nodes(model.graph):
             # Skip custom domains -- the matrix only describes "" / "ai.onnx".
             if node.domain and node.domain not in ("", "ai.onnx"):
                 continue

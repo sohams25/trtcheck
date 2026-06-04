@@ -18,6 +18,7 @@ from __future__ import annotations
 import onnx
 from onnx import TensorProto
 
+from trtcheck._graph import iter_subgraphs
 from trtcheck.fixers import FixApplied
 
 
@@ -25,7 +26,12 @@ class Uint8InputFixer:
     name = "uint8_input"
 
     def fix(self, model: onnx.ModelProto) -> list[FixApplied]:
-        graph = model.graph
+        applied: list[FixApplied] = []
+        for graph in iter_subgraphs(model.graph):
+            applied.extend(self._fix_graph(graph))
+        return applied
+
+    def _fix_graph(self, graph: onnx.GraphProto) -> list[FixApplied]:
         applied: list[FixApplied] = []
 
         # Map: input name -> list of (node_index, input_position) that consume it
