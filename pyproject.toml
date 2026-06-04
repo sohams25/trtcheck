@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Quality Assurance",
 ]
@@ -46,8 +47,8 @@ dev = [
 trtcheck = "trtcheck.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/sohams-web/trtcheck"
-Issues = "https://github.com/sohams-web/trtcheck/issues"
+Homepage = "https://github.com/sohams25/trtcheck"
+Issues = "https://github.com/sohams25/trtcheck/issues"
 
 [tool.setuptools.packages.find]
 include = ["trtcheck*"]
@@ -58,7 +59,7 @@ trtcheck = ["data/*.json"]
 
 [tool.black]
 line-length = 100
-target-version = ["py310", "py311", "py312"]
+target-version = ["py310", "py311", "py312", "py313"]
 
 [tool.isort]
 profile = "black"
