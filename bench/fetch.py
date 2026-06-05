@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -23,6 +24,25 @@ import yaml
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _MANIFEST = _REPO_ROOT / "bench" / "manifest.yaml"
 _CACHE_DIR = _REPO_ROOT / "bench" / "cache"
+
+# A manifest 'name' becomes a cache filename, so it must not contain path
+# separators or traversal sequences -- otherwise a hostile manifest could write
+# outside bench/cache/. Require a leading alphanumeric so dot-only names (".",
+# "..", "...") and leading-dot names are rejected, not just bare "."/"..".
+_SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def _safe_dest(cache_dir: Path, name: str) -> Path:
+    """Build the cache path for `name`, refusing anything that could escape it."""
+    if not _SAFE_NAME_RE.match(name):
+        raise RuntimeError(
+            f"unsafe manifest entry name {name!r}: must start alphanumeric and "
+            "contain only [A-Za-z0-9._-]"
+        )
+    dest = (cache_dir / f"{name}.onnx").resolve()
+    if cache_dir.resolve() not in dest.parents:
+        raise RuntimeError(f"manifest entry name {name!r} resolves outside the cache dir")
+    return dest
 
 
 def load_manifest(path: Path = _MANIFEST) -> list[dict[str, Any]]:
@@ -54,8 +74,8 @@ def fetch_entry(entry: dict[str, Any], cache_dir: Path = _CACHE_DIR) -> Path | N
     if not is_url(source):
         return None
 
+    dest = _safe_dest(cache_dir, entry["name"])
     cache_dir.mkdir(parents=True, exist_ok=True)
-    dest = cache_dir / f"{entry['name']}.onnx"
 
     if dest.exists():
         expected_hash = entry.get("sha256")

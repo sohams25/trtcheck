@@ -69,3 +69,66 @@ class TestCompare:
         }
         drift = compare(synthetic_upstream, matrix, target_version="10.3")
         assert drift == []
+
+
+class TestVersionAwareness:
+    def test_parser_tags_column_version(self, upstream_text: str) -> None:
+        # The fixture header is "TensorRT 10.x" -> major "10".
+        parsed = parse_upstream_markdown(upstream_text)
+        assert parsed["Abs"]["version"] == "10"
+
+    def test_non_matching_target_emits_no_spurious_mismatch(
+        self, upstream_text: str, matrix: dict
+    ) -> None:
+        # The upstream table covers 10.x. GroupNormalization (8.0=not_supported)
+        # and LayerNormalization (8.0=partial) would falsely "mismatch" the 10.x
+        # 'supported' column if compared at 8.0. They must NOT be flagged.
+        parsed = parse_upstream_markdown(upstream_text)
+        drift = compare(parsed, matrix, target_version="8.0")
+        assert not any("GroupNormalization" in line for line in drift)
+        assert not any("LayerNormalization" in line for line in drift)
+        # Nothing in a 10.x table is comparable to 8.0 -> no drift at all.
+        assert drift == []
+
+    def test_matching_target_still_flags_real_drift(self, upstream_text: str, matrix: dict) -> None:
+        # 10.3 shares major 10 with the table, so the real Mish mismatch surfaces.
+        parsed = parse_upstream_markdown(upstream_text)
+        drift = compare(parsed, matrix, target_version="10.3")
+        assert any("Mish" in line for line in drift)
+
+    def test_versionless_upstream_is_compared_as_before(self, matrix: dict) -> None:
+        # An upstream dict with no 'version' key (e.g. a synthetic one) must
+        # still be compared, preserving back-compat.
+        synthetic = {"Mish": {"status": "not_supported"}}
+        drift = compare(synthetic, matrix, target_version="10.3")
+        assert any("Mish" in line for line in drift)
+
+    def test_trt_abbreviation_header_is_recognized(self) -> None:
+        # Real upstream tables abbreviate "TensorRT" as "TRT".
+        text = "| Operator | TRT 10.x | Restrictions |\n|---|---|---|\n| Conv | Y | |\n"
+        parsed = parse_upstream_markdown(text)
+        assert parsed["Conv"]["version"] == "10"
+        assert parsed["Conv"]["status"] == "supported"
+
+    def test_status_column_located_by_header_not_position(self) -> None:
+        # The version column is not always the second cell; find it by header.
+        text = (
+            "| Operator | Domain | TensorRT 10.x | Restrictions |\n"
+            "|---|---|---|---|\n"
+            "| Conv | ai.onnx | Y | none |\n"
+        )
+        parsed = parse_upstream_markdown(text)
+        assert parsed["Conv"]["status"] == "supported"
+        assert parsed["Conv"]["version"] == "10"
+
+    def test_multi_version_columns_warn_and_take_last(self, capsys: pytest.CaptureFixture) -> None:
+        text = (
+            "| Operator | TRT 8.x | TRT 10.x | Restrictions |\n"
+            "|---|---|---|---|\n"
+            "| Conv | N | Y | |\n"
+        )
+        parsed = parse_upstream_markdown(text)
+        # Last version column wins (10.x -> supported), and a warning is emitted.
+        assert parsed["Conv"]["version"] == "10"
+        assert parsed["Conv"]["status"] == "supported"
+        assert "multiple TRT version columns" in capsys.readouterr().err
