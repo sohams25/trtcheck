@@ -10,14 +10,27 @@ The TRT support story for these ops has a few well-known sharp edges:
     outputs. We don't fully verify this here (shape inference would be
     required); we flag every If as a warning so the user knows to check.
   - Scan: sequence length must be statically known.
+
+Remediation/explanation/severity for each finding live in remediation_db.json
+(via :mod:`trtcheck.remediation`); this checker only supplies the per-node
+prefix.
 """
 
 from __future__ import annotations
 
 import onnx
 
+from trtcheck import remediation
 from trtcheck._graph import iter_initializers, iter_nodes
-from trtcheck.types import CheckCategory, Issue, Severity
+from trtcheck.types import Issue
+
+# Remediation-DB keys this checker can emit (guarded by tests/test_remediation_wiring.py).
+# Note: an If is keyed to the WARNING `if_detected_unverified`, NOT the CRITICAL
+# `if_branch_shape_mismatch` -- we cannot confirm a mismatch without shape
+# inference, so flagging every If as critical would wrongly fail every model.
+EMITS = frozenset(
+    {"loop_dynamic_trip_count", "nested_loop", "if_detected_unverified", "scan_dynamic_length"}
+)
 
 
 class ControlFlowChecker:
@@ -38,7 +51,7 @@ class ControlFlowChecker:
             if node.op_type == "Loop":
                 issues.extend(self._check_loop(node, initializer_names))
             elif node.op_type == "If":
-                issues.extend(self._check_if(node))
+                issues.append(self._check_if(node))
             elif node.op_type == "Scan":
                 issues.append(self._scan_warning(node))
         return issues
@@ -51,6 +64,7 @@ class ControlFlowChecker:
         initializer_names: set[str],
     ) -> list[Issue]:
         issues: list[Issue] = []
+        name = node.name or "<Loop>"
 
         # Inputs to Loop: [M (trip count), cond, ...loop_state]
         # If the trip count input is not an initializer (i.e., it's a runtime
@@ -58,24 +72,11 @@ class ControlFlowChecker:
         trip_input = node.input[0] if len(node.input) > 0 else ""
         if trip_input and trip_input not in initializer_names:
             issues.append(
-                Issue(
-                    severity=Severity.WARNING,
-                    category=CheckCategory.CONTROL_FLOW,
-                    node_name=node.name or "<Loop>",
+                remediation.make_issue(
+                    "loop_dynamic_trip_count",
+                    node_name=name,
                     operator="Loop",
-                    message=(
-                        f"Loop '{node.name}' uses input '{trip_input}' as its trip "
-                        "count. TensorRT requires a statically-known or "
-                        "shape-inferable trip count."
-                    ),
-                    remediation=(
-                        "Refactor the loop to use a fixed iteration count, or "
-                        "fully unroll the loop at export time."
-                    ),
-                    docs_link=(
-                        "https://docs.nvidia.com/deeplearning/tensorrt/"
-                        "developer-guide/index.html#loops"
-                    ),
+                    prefix=f"Loop '{node.name}' uses input '{trip_input}' as its trip count",
                 )
             )
 
@@ -83,62 +84,33 @@ class ControlFlowChecker:
         body_subgraph = _body_subgraph(node)
         if body_subgraph is not None and _contains_op(body_subgraph, "Loop"):
             issues.append(
-                Issue(
-                    severity=Severity.CRITICAL,
-                    category=CheckCategory.CONTROL_FLOW,
-                    node_name=node.name or "<Loop>",
+                remediation.make_issue(
+                    "nested_loop",
+                    node_name=name,
                     operator="Loop",
-                    message=(
-                        f"Loop '{node.name}' contains a nested Loop in its body. "
-                        "TensorRT does not support Loop-within-Loop."
-                    ),
-                    remediation=(
-                        "Restructure the model to use a single Loop with combined "
-                        "trip count, or fully unroll the inner iterations."
-                    ),
-                    docs_link=None,
+                    prefix=f"Loop '{node.name}' contains a nested Loop in its body",
                 )
             )
         return issues
 
     # -- If ---------------------------------------------------------------
 
-    def _check_if(self, node: onnx.NodeProto) -> list[Issue]:
-        return [
-            Issue(
-                severity=Severity.WARNING,
-                category=CheckCategory.CONTROL_FLOW,
-                node_name=node.name or "<If>",
-                operator="If",
-                message=(
-                    f"If '{node.name}' detected. TensorRT requires both branches "
-                    "to produce identically-shaped, identically-typed tensors."
-                ),
-                remediation=(
-                    "If branches diverge in output shape, pad or broadcast the "
-                    "smaller branch to match before the If output."
-                ),
-                docs_link=None,
-            )
-        ]
+    def _check_if(self, node: onnx.NodeProto) -> Issue:
+        return remediation.make_issue(
+            "if_detected_unverified",
+            node_name=node.name or "<If>",
+            operator="If",
+            prefix=f"If '{node.name}' detected",
+        )
 
     # -- Scan -------------------------------------------------------------
 
     def _scan_warning(self, node: onnx.NodeProto) -> Issue:
-        return Issue(
-            severity=Severity.WARNING,
-            category=CheckCategory.CONTROL_FLOW,
+        return remediation.make_issue(
+            "scan_dynamic_length",
             node_name=node.name or "<Scan>",
             operator="Scan",
-            message=(
-                f"Scan '{node.name}' detected. TensorRT requires the scan "
-                "sequence length to be known at engine build time."
-            ),
-            remediation=(
-                "Fix the scan length at export, or replace Scan with a Loop "
-                "over a constant range."
-            ),
-            docs_link=None,
+            prefix=f"Scan '{node.name}' detected",
         )
 
 

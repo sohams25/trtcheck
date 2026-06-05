@@ -10,6 +10,14 @@
       "remediation": "Before exporting, cast indices to torch.int32: e.g. `idx = idx.to(torch.int32)`. For embedding lookups, ensure the indices tensor is int32.",
       "docs_link": "https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#layers-precision"
     },
+    "int64_input": {
+      "category": "precision",
+      "severity": "warning",
+      "summary": "INT64 graph input detected.",
+      "explanation": "TensorRT does not natively support INT64. Engine build will cast INT64 inputs to INT32, which can overflow for large index values.",
+      "remediation": "Cast the input to int32 before exporting, or feed int32 tensors at inference time. For embedding/gather indices, ensure they are int32.",
+      "docs_link": "https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#layers-precision"
+    },
     "uint8_input": {
       "category": "precision",
       "severity": "critical",
@@ -30,7 +38,7 @@
       "category": "precision",
       "severity": "critical",
       "summary": "FLOAT64 (double) tensors detected.",
-      "explanation": "TensorRT does not support double precision. Models trained or exported with float64 must be downcast before conversion.",
+      "explanation": "TensorRT does not support double precision (FLOAT64). Models trained or exported with float64 must be downcast before conversion.",
       "remediation": "Call `model = model.float()` before torch.onnx.export, and verify with `onnx.checker` that no FLOAT64 remains.",
       "docs_link": null
     },
@@ -92,6 +100,13 @@
       "summary": "If branches produce outputs with incompatible shapes or dtypes.",
       "explanation": "TRT requires both then/else branches to emit identically shaped, identically typed tensors.",
       "remediation": "Make the two branches produce the same output shape; pad or broadcast the smaller branch to match."
+    },
+    "if_detected_unverified": {
+      "category": "control_flow",
+      "severity": "warning",
+      "summary": "If node detected; branch compatibility not verified.",
+      "explanation": "TRT requires both then/else branches to emit identically shaped, identically typed tensors. trtcheck cannot confirm this without full shape inference, so every If is flagged for manual review.",
+      "remediation": "Verify both branches return tensors of matching shape and dtype. If they differ, pad or broadcast the smaller branch to match before exporting."
     },
     "scan_dynamic_length": {
       "category": "control_flow",
