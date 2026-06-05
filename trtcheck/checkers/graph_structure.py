@@ -3,6 +3,9 @@
 These checks don't require any operator-support knowledge -- they look at
 the shape of the graph itself: do outputs exist, are node names unique, are
 there unusually large constants that might inflate the engine.
+
+Remediation/explanation/severity live in remediation_db.json (via
+:mod:`trtcheck.remediation`); this checker supplies the per-node prefix.
 """
 
 from __future__ import annotations
@@ -11,9 +14,13 @@ from collections import Counter
 
 import onnx
 
-from trtcheck.types import CheckCategory, Issue, Severity
+from trtcheck import remediation
+from trtcheck.types import Issue
 
 _LARGE_CONSTANT_BYTES = 10 * 1024 * 1024  # 10 MiB
+
+# Remediation-DB keys this checker can emit (guarded by tests/test_data_files.py).
+EMITS = frozenset({"missing_output", "duplicate_node_name", "large_constant"})
 
 
 class GraphStructureChecker:
@@ -32,17 +39,11 @@ class GraphStructureChecker:
     def _check_outputs(self, graph: onnx.GraphProto) -> list[Issue]:
         if len(graph.output) == 0:
             return [
-                Issue(
-                    severity=Severity.CRITICAL,
-                    category=CheckCategory.GRAPH_STRUCTURE,
+                remediation.make_issue(
+                    "missing_output",
                     node_name=graph.name or "<graph>",
                     operator="Graph",
-                    message="Graph declares zero outputs; TensorRT requires at least one.",
-                    remediation=(
-                        "Re-export the model with do_constant_folding=False to localize "
-                        "the issue, or verify that forward() returns at least one tensor."
-                    ),
-                    docs_link=None,
+                    prefix="Graph declares zero outputs",
                 )
             ]
         return []
@@ -53,17 +54,11 @@ class GraphStructureChecker:
         counts = Counter(named)
         duplicates = {name for name, count in counts.items() if count > 1}
         return [
-            Issue(
-                severity=Severity.WARNING,
-                category=CheckCategory.GRAPH_STRUCTURE,
+            remediation.make_issue(
+                "duplicate_node_name",
                 node_name=name,
                 operator="Graph",
-                message=f"Node name '{name}' is used by {counts[name]} nodes (duplicate).",
-                remediation=(
-                    "Set unique node names during export or run an ONNX simplifier "
-                    "pass before TensorRT conversion."
-                ),
-                docs_link=None,
+                prefix=f"Node name '{name}' is used by {counts[name]} nodes (duplicate)",
             )
             for name in sorted(duplicates)
         ]
@@ -89,17 +84,11 @@ class GraphStructureChecker:
     @staticmethod
     def _large_const_issue(name: str, size: int) -> Issue:
         mb = size / (1024 * 1024)
-        return Issue(
-            severity=Severity.INFO,
-            category=CheckCategory.GRAPH_STRUCTURE,
+        return remediation.make_issue(
+            "large_constant",
             node_name=name,
             operator="Constant",
-            message=f"Large constant '{name}' is {mb:.1f} MiB.",
-            remediation=(
-                "Verify the constant is a learned weight, not e.g. a baked-in image. "
-                "Baked input data inflates engine size unnecessarily."
-            ),
-            docs_link=None,
+            prefix=f"Large constant '{name}' is {mb:.1f} MiB",
         )
 
 
