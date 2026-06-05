@@ -28,6 +28,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   now warn loudly.
 - `tools/build_operator_matrix.py` exposes a pure `build_matrix()` (deep-copied)
   and writes via an absolute path, so regeneration works from any directory.
+- `remediation_db.json` is now the single source of truth for the
+  explanation / remediation / docs_link / severity of the precision,
+  control-flow, dynamic-shape, and graph-structure findings (loaded via the new
+  `trtcheck.remediation` module); the checkers no longer hard-code that text, so
+  it can't drift. Finding messages now end with the DB explanation, and the
+  UINT8/INT64 precision findings now carry a docs link. (operator support keeps
+  using `operator_matrix.json`.)
 
 ### Removed
 - `raw_trtcheck.md` (internal spec brief) and `docs/screenshot.svg` (orphaned,
