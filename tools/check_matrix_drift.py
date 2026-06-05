@@ -28,15 +28,35 @@ _MATRIX_PATH = Path(__file__).parent.parent / "trtcheck" / "data" / "operator_ma
 _ROW_RE = re.compile(r"^\s*\|(.+)\|\s*$")
 # Skip the header-separator row (cells contain only dashes and colons).
 _SEPARATOR_RE = re.compile(r"^[\s\-:]+$")
+# Extract the major TRT version a status column describes, e.g. the headers
+# "TensorRT 10.x" / "TRT 10.x" / "TRT v10" -> "10". Used so a --target the table
+# doesn't cover is not diffed against the wrong column (which would manufacture
+# false mismatches), and to locate the status column by header rather than
+# assuming it is always the second cell.
+_COLUMN_VERSION_RE = re.compile(r"(?:tensor\s*rt|trt)\s*v?\s*(\d+)", re.IGNORECASE)
+
+
+def major_of(version: str) -> str:
+    """Major component of a TRT version string: '10.3' -> '10', '8' -> '8'."""
+    return version.split(".")[0].strip()
 
 
 def parse_upstream_markdown(text: str) -> dict[str, dict[str, str]]:
-    """Extract operator -> {status, notes} from upstream markdown tables.
+    """Extract operator -> {status, notes, version} from upstream markdown tables.
 
     Status normalizes 'Y' -> 'supported', 'N' -> 'not_supported', 'partial'
     or 'P' -> 'partial'. Unrecognized values pass through as 'unknown'.
+
+    The status column is located by header (the first/only cell matching a
+    "TensorRT N" / "TRT N" pattern), not by fixed position. ``version`` is that
+    column's major TRT version (e.g. "10"), or "" if the header gives no version
+    -- tagging each row lets ``compare`` refuse to diff it against a different
+    target major. If the table ever carries multiple version columns a warning
+    is emitted (the last is used); make this multi-column-aware if that happens.
     """
     out: dict[str, dict[str, str]] = {}
+    column_version = ""
+    status_idx = 1  # default: second cell, until the header tells us otherwise
     for line in text.splitlines():
         match = _ROW_RE.match(line)
         if not match:
@@ -45,15 +65,36 @@ def parse_upstream_markdown(text: str) -> dict[str, dict[str, str]]:
         if not cells or len(cells) < 2:
             continue
         op = cells[0]
-        # Skip headers and separators
-        if not op or op.lower() == "operator" or _SEPARATOR_RE.match(op):
+        # The header row identifies itself ("Operator") and names the TRT
+        # version column(s). Locate the status column BY HEADER rather than
+        # assuming it is cells[1] -- the upstream table has had extra columns
+        # before the status one. If several version columns exist we can't know
+        # which the single-status model means, so warn loudly and take the last.
+        if op.lower() == "operator":
+            version_cols = [
+                (i, m.group(1)) for i, c in enumerate(cells) if (m := _COLUMN_VERSION_RE.search(c))
+            ]
+            if len(version_cols) > 1:
+                cols = ", ".join(f"col{i}=TRT{v}" for i, v in version_cols)
+                print(
+                    f"warning: upstream table has multiple TRT version columns ({cols}); "
+                    "using the last. Make this tool multi-column-aware if that is wrong.",
+                    file=sys.stderr,
+                )
+            if version_cols:
+                status_idx, column_version = version_cols[-1]
             continue
-        status_cell = cells[1].strip()
+        # Skip blank names and separators
+        if not op or _SEPARATOR_RE.match(op):
+            continue
+        if status_idx >= len(cells):
+            continue  # row narrower than the header promised; skip defensively
+        status_cell = cells[status_idx].strip()
         if _SEPARATOR_RE.match(status_cell):
             continue
         status = _normalize_status(status_cell)
-        notes = cells[2] if len(cells) > 2 else ""
-        out[op] = {"status": status, "notes": notes}
+        notes = cells[status_idx + 1] if len(cells) > status_idx + 1 else ""
+        out[op] = {"status": status, "notes": notes, "version": column_version}
     return out
 
 
@@ -84,8 +125,15 @@ def compare(
     """
     drift: list[str] = []
     matrix_ops: dict[str, Any] = matrix["operators"]
+    target_major = major_of(target_version)
 
     for op, info in upstream.items():
+        # If the upstream table describes a different TRT major than the target,
+        # its column says nothing about the target version -- diffing it would
+        # invent mismatches. Skip rather than compare across majors.
+        op_version = info.get("version", "")
+        if op_version and op_version != target_major:
+            continue
         upstream_status = info["status"]
         if op not in matrix_ops:
             drift.append(f"[new upstream] {op} (upstream={upstream_status})")
@@ -127,6 +175,20 @@ def main(argv: list[str] | None = None) -> int:
     upstream_text = _load_upstream(args.local)
     upstream = parse_upstream_markdown(upstream_text)
     matrix = json.loads(_MATRIX_PATH.read_text())
+
+    # Warn loudly if the upstream table describes a different TRT major than the
+    # requested target -- otherwise an empty drift result could be mistaken for
+    # "in sync" when really nothing was comparable.
+    table_versions = {info.get("version", "") for info in upstream.values()} - {""}
+    target_major = major_of(args.target)
+    if table_versions and target_major not in table_versions:
+        cov = ", ".join(sorted(table_versions))
+        print(
+            f"warning: upstream table covers TRT major {cov}; nothing to compare "
+            f"for --target {args.target}. Use a target in that major, or update the "
+            "upstream source."
+        )
+        return 0
 
     drift = compare(upstream, matrix, target_version=args.target)
     if not drift:
