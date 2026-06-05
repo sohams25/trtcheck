@@ -11,6 +11,27 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   on `workflow_dispatch`. On drift, opens or refreshes a single rolling
   `[matrix-drift] YYYY-MM-DD` issue with the per-operator diff and a
   triage recipe. Auto-closes the issue when the matrix is back in sync.
+- Always-on performance + memory gate: a synthetic few-thousand-node graph is
+  analyzed in CI with wall-clock and `tracemalloc` budgets, tripping on an
+  accidental O(n^2)/per-node-allocation regression (no GPU/assets needed).
+- Generator drift guards: tests assert `operator_matrix.json` and every
+  `docs/operators/*.md` exactly match `tools/build_operator_matrix.py` /
+  `build_operator_docs.py` output, and that no operator page is stale/missing.
+- Version-sync test: `pyproject` version, `trtcheck.__version__`, and the
+  Action's default `version` input must agree.
+
+### Changed
+- `tools/check_matrix_drift.py` is version-aware: it locates the upstream status
+  column by header (supporting "TensorRT"/"TRT" and non-second-column layouts),
+  tags it with the TRT major, and refuses to diff a `--target` the table does
+  not cover instead of emitting spurious mismatches. Multiple version columns
+  now warn loudly.
+- `tools/build_operator_matrix.py` exposes a pure `build_matrix()` (deep-copied)
+  and writes via an absolute path, so regeneration works from any directory.
+
+### Removed
+- `raw_trtcheck.md` (internal spec brief) and `docs/screenshot.svg` (orphaned,
+  unreferenced) no longer ship in the repo.
 
 ### Fixed
 - **Subgraph blind spot (correctness).** Every checker except control-flow
@@ -47,6 +68,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 - `release.yml` now declares least-privilege `permissions`.
 - Console/JSON reporters strip control characters and neutralize Rich markup
   from model-derived strings (the HTML reporter was already escaped).
+- `bench/fetch.py` validates a manifest entry's `name` (rejecting separators and
+  dot-only/traversal forms) and confirms the resolved path stays under the cache
+  directory before writing, closing a path-traversal write.
 
 ### Changed
 - Only third-party **plugin** checkers are isolated behind failure handling;
