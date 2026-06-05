@@ -4,7 +4,9 @@ This script is intentionally not part of the package -- it produces a data
 file that ships with the wheel. Rerunning it should be deterministic.
 """
 
+import copy
 import json
+from pathlib import Path
 from typing import Any
 
 VERSIONS = ["8.0", "8.6", "10.0", "10.3"]
@@ -211,17 +213,29 @@ OPERATORS: dict[str, dict[str, Any]] = {
 }
 
 
-def main() -> None:
-    matrix = {
+def build_matrix() -> dict[str, Any]:
+    """The full matrix document, as a dict. Pure; safe to call from tests.
+
+    Returns a deep copy so callers can mutate the result without corrupting the
+    module-level ``OPERATORS`` source of truth.
+    """
+    return {
         "schema_version": "1.0",
         "last_updated": "2026-05-21",
-        "target_trt_versions": VERSIONS,
-        "operators": OPERATORS,
+        "target_trt_versions": list(VERSIONS),
+        "operators": copy.deepcopy(OPERATORS),
     }
-    out = "trtcheck/data/operator_matrix.json"
-    with open(out, "w") as f:
-        json.dump(matrix, f, indent=2, sort_keys=False)
-        f.write("\n")
+
+
+def render_matrix_json(matrix: dict[str, Any]) -> str:
+    """Serialize the matrix exactly as it is written to disk."""
+    return json.dumps(matrix, indent=2, sort_keys=False) + "\n"
+
+
+def main() -> None:
+    matrix = build_matrix()
+    out = Path(__file__).resolve().parent.parent / "trtcheck" / "data" / "operator_matrix.json"
+    out.write_text(render_matrix_json(matrix))
     print(f"Wrote {out} with {len(OPERATORS)} operators.")
 
 
