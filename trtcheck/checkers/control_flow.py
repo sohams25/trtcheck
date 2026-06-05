@@ -24,7 +24,7 @@ from trtcheck import remediation
 from trtcheck._graph import iter_initializers, iter_nodes
 from trtcheck.types import Issue
 
-# Remediation-DB keys this checker can emit (guarded by tests/test_data_files.py).
+# Remediation-DB keys this checker can emit (guarded by tests/test_remediation_wiring.py).
 # Note: an If is keyed to the WARNING `if_detected_unverified`, NOT the CRITICAL
 # `if_branch_shape_mismatch` -- we cannot confirm a mismatch without shape
 # inference, so flagging every If as critical would wrongly fail every model.

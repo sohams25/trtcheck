@@ -16,7 +16,7 @@ import onnx
 from trtcheck import remediation
 from trtcheck.types import Issue
 
-# Remediation-DB keys this checker can emit (guarded by tests/test_data_files.py).
+# Remediation-DB keys this checker can emit (guarded by tests/test_remediation_wiring.py).
 EMITS = frozenset({"fully_dynamic_input_shape"})
 
 

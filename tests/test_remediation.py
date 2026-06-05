@@ -74,3 +74,15 @@ def test_to_entry_rejects_bad_category() -> None:
     }
     with pytest.raises(ValueError):
         remediation._to_entry("bad_key", bad)
+
+
+def test_parse_rejects_malformed_json() -> None:
+    # A truncated/invalid DB must fail with a clear ValueError, not a raw
+    # JSONDecodeError that crashes every checker import opaquely.
+    with pytest.raises(ValueError, match="malformed"):
+        remediation._parse("{ this is not valid json")
+
+
+def test_parse_rejects_missing_issues_key() -> None:
+    with pytest.raises(ValueError, match="malformed"):
+        remediation._parse('{"schema_version": "1.0"}')

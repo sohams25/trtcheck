@@ -19,7 +19,7 @@ from trtcheck.types import Issue
 
 _LARGE_CONSTANT_BYTES = 10 * 1024 * 1024  # 10 MiB
 
-# Remediation-DB keys this checker can emit (guarded by tests/test_data_files.py).
+# Remediation-DB keys this checker can emit (guarded by tests/test_remediation_wiring.py).
 EMITS = frozenset({"missing_output", "duplicate_node_name", "large_constant"})
 
 

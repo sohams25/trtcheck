@@ -56,10 +56,18 @@ def _to_entry(key: str, raw: dict[str, Any]) -> RemediationEntry:
         raise ValueError(f"remediation_db.json entry {key!r} is invalid: {exc}") from exc
 
 
+def _parse(text: str) -> dict[str, RemediationEntry]:
+    """Parse the DB JSON text into typed entries, failing loudly on bad data."""
+    try:
+        issues = json.loads(text)["issues"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise ValueError(f"remediation_db.json is malformed: {exc}") from exc
+    return {key: _to_entry(key, entry) for key, entry in issues.items()}
+
+
 def _load() -> dict[str, RemediationEntry]:
     text = resources.files("trtcheck.data").joinpath("remediation_db.json").read_text()
-    raw = json.loads(text)
-    return {key: _to_entry(key, entry) for key, entry in raw["issues"].items()}
+    return _parse(text)
 
 
 _DB: dict[str, RemediationEntry] = _load()

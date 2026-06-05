@@ -38,7 +38,7 @@
       "category": "precision",
       "severity": "critical",
       "summary": "FLOAT64 (double) tensors detected.",
-      "explanation": "TensorRT does not support double precision. Models trained or exported with float64 must be downcast before conversion.",
+      "explanation": "TensorRT does not support double precision (FLOAT64). Models trained or exported with float64 must be downcast before conversion.",
       "remediation": "Call `model = model.float()` before torch.onnx.export, and verify with `onnx.checker` that no FLOAT64 remains.",
       "docs_link": null
     },
