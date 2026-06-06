@@ -138,3 +138,19 @@ def test_bidi_override_chars_are_stripped_html() -> None:
     report = _report_with(f"Conv{_RLO}gpno.txt", "msg", "fix")
     out = HTMLReporter().render(report)
     assert _RLO not in out
+
+
+# Zero-width / BOM carriers: no legitimate use in model-derived strings.
+_ZERO_WIDTH = "​‌‍﻿"  # ZWSP, ZWNJ, ZWJ, BOM/ZWNBSP
+
+
+@pytest.mark.parametrize(
+    "reporter",
+    [ConsoleReporter(color=False), HTMLReporter()],
+    ids=["console", "html"],
+)
+def test_zero_width_chars_are_stripped(reporter) -> None:
+    report = _report_with(f"we{_ZERO_WIDTH}ights", "msg", "fix")
+    out = reporter.render(report)
+    for ch in _ZERO_WIDTH:
+        assert ch not in out, f"{reporter.name} leaked zero-width char {ch!r}"

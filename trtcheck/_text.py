@@ -8,9 +8,10 @@ HTML document we strip two classes of dangerous characters:
   could otherwise smuggle ANSI escape sequences (cursor moves, screen clears)
   into a terminal, or a NUL byte that makes an HTML file byte-invalid and breaks
   downstream HTML/XML consumers.
-* **Unicode bidirectional / formatting overrides** (Trojan-Source). U+202A-E,
-  U+2066-9, U+200E/200F visually reorder text so a malicious "fix" command can
-  be made to read as something benign.
+* **Unicode bidirectional / zero-width formatting characters** (Trojan-Source,
+  CVE-2021-42574). Bidi overrides visually reorder text so a malicious "fix"
+  command can be made to read as something benign; zero-width chars splice or
+  hide content. Neither has any legitimate use in a model-derived string.
 
 Both the console and HTML reporters route every model-derived field through
 :func:`strip_unsafe` so the two output formats can never drift apart on what
@@ -22,13 +23,20 @@ from __future__ import annotations
 
 import re
 
-# Keep \t (0x09) and \n (0x0a). Strip the rest of C0, DEL (0x7f), the C1 block
-# (0x80-0x9f -- 0x9b is the single-byte CSI ANSI introducer), and the Unicode
-# bidi/format overrides used in Trojan-Source display-spoofing attacks
-# (U+200E/200F marks, U+202A-202E embeddings/overrides, U+2066-2069 isolates).
-_UNSAFE_CHARS = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f" "\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+# One character class -- a single literal; the brackets span the whole pattern.
+# Keep \t (U+0009) and \n (U+000A). Strip:
+#   U+0000-0008, U+000B-001F  rest of the C0 control block
+#   U+007F-009F               DEL + C1 block (U+009B is the single-byte CSI
+#                             ANSI introducer)
+#   U+200B-200F               zero-width space/(non-)joiner + LRM/RLM marks
+#   U+202A-202E               bidi embeddings/overrides (Trojan-Source)
+#   U+2066-2069               bidi isolates (Trojan-Source)
+#   U+FEFF                    BOM / zero-width no-break space (stego carrier)
+_UNSAFE_CHARS = re.compile(
+    "[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]"
+)
 
 
 def strip_unsafe(text: str) -> str:
-    """Remove control and bidi-override characters from untrusted text."""
+    """Remove control, bidi-override, and zero-width characters from untrusted text."""
     return _UNSAFE_CHARS.sub("", text)

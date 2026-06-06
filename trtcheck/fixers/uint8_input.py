@@ -50,6 +50,12 @@ class Uint8InputFixer:
             if to_attr is None or to_attr.i != TensorProto.FLOAT:
                 continue
 
+            output_names = {out.name for out in graph.output}
+            # Refuse when the input is itself a graph output (a passthrough).
+            # Promoting it to FLOAT would leave the same-named output still
+            # declaring UINT8 -- a model that fails full type inference.
+            if inp.name in output_names:
+                continue
             cast_output = node.output[0]
             # Refuse when the Cast's output is itself a graph output. Rewiring it
             # to the input name and deleting the Cast would leave that output
@@ -58,7 +64,7 @@ class Uint8InputFixer:
             # that TensorRT cannot build a meaningful engine from. Leave it for
             # the user, consistent with the fixers' "skip if not unambiguously
             # safe" contract.
-            if cast_output in {out.name for out in graph.output}:
+            if cast_output in output_names:
                 continue
 
             # Safe to rewrite:
