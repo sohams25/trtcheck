@@ -16,7 +16,7 @@ import onnx
 from onnx import TensorProto, numpy_helper
 
 from trtcheck._graph import iter_subgraphs
-from trtcheck.fixers import FixApplied
+from trtcheck.fixers import FixApplied, sync_value_info_dtype
 
 _INT32_MIN = -(2**31)
 _INT32_MAX = 2**31 - 1
@@ -49,6 +49,10 @@ class Int64ToInt32Fixer:
             new_arr = arr.astype(np.int32)
             new_init = numpy_helper.from_array(new_arr, name=init.name)
             init.CopyFrom(new_init)
+            # If this initializer also shadows a graph input/output, retype that
+            # ValueInfo to INT32 too -- otherwise full type inference rejects the
+            # fixed model (legal ONNX: an initializer may also be a graph input).
+            sync_value_info_dtype(graph, init.name, TensorProto.INT32)
             applied.append(
                 FixApplied(
                     fixer=self.name,

@@ -54,3 +54,6 @@ bench/cache/
 
 # mkdocs build output
 /site/
+
+# graphify local knowledge-graph artifact (per-developer, regenerated via `graphify update .`)
+graphify-out/

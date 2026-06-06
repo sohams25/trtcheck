@@ -10,13 +10,13 @@ plain-text version that's easy to assert against.
 from __future__ import annotations
 
 import io
-import re
 
 from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
+from trtcheck._text import strip_unsafe
 from trtcheck.types import AnalysisReport, Severity
 
 _SEV_COLOR = {
@@ -25,16 +25,13 @@ _SEV_COLOR = {
     Severity.INFO: "blue",
 }
 
-# Strip ASCII control characters (keep tab/newline) from model-derived text so a
-# hostile model can't smuggle ANSI escapes / cursor moves into the terminal.
-_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
-
 
 def _sanitize(text: str) -> str:
-    """Make model-derived text safe to print: drop control chars and neutralize
-    Rich console markup so a crafted node name like ``[red]x[/red]`` renders
-    literally instead of being interpreted."""
-    return escape(_CONTROL_CHARS.sub("", text))
+    """Make model-derived text safe to print: drop control / bidi-override chars
+    (see :mod:`trtcheck._text`) and neutralize Rich console markup so a crafted
+    node name like ``[red]x[/red]`` renders literally instead of being
+    interpreted."""
+    return escape(strip_unsafe(text))
 
 
 class ConsoleReporter:

@@ -121,6 +121,45 @@ def test_iter_initializers_includes_subgraph_initializers() -> None:
     assert "buried" in init_names
 
 
+def _nested_if(depth: int) -> onnx.GraphProto:
+    """A graph nested ``depth`` If-levels deep (each If reuses one body graph for
+    both branches). Used to exercise the traversal depth bound directly, since
+    protobuf's own decoder makes such depth unreachable through onnx.load."""
+    g = helper.make_graph(
+        [_const("leaf", "out")],
+        "leaf",
+        [],
+        [helper.make_tensor_value_info("out", TensorProto.FLOAT, [1])],
+    )
+    for d in range(depth):
+        cond = helper.make_node(
+            "Constant",
+            [],
+            ["cond"],
+            name=f"c{d}",
+            value=helper.make_tensor("c", TensorProto.BOOL, [], [True]),
+        )
+        ifn = helper.make_node("If", ["cond"], ["out"], name=f"if{d}", then_branch=g, else_branch=g)
+        g = helper.make_graph(
+            [cond, ifn],
+            f"g{d}",
+            [],
+            [helper.make_tensor_value_info("out", TensorProto.FLOAT, [1])],
+        )
+    return g
+
+
+def test_iter_subgraphs_respects_max_depth() -> None:
+    g = _nested_if(6)
+    shallow = list(iter_subgraphs(g, max_depth=2))
+    deep = list(iter_subgraphs(g, max_depth=10))
+    # A tighter bound visits strictly fewer subgraphs -- proving the cap actually
+    # prunes recursion rather than always walking to the leaves.
+    assert len(shallow) < len(deep)
+    # max_depth=0 yields only the root graph, so count_nodes sees just its nodes.
+    assert count_nodes(g, max_depth=0) == len(g.node)
+
+
 def test_walker_descends_deep_nesting_and_terminates() -> None:
     """Nested subgraphs are walked to the leaf and traversal terminates cleanly.
 
