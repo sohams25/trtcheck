@@ -73,6 +73,9 @@ _SEVERITY_PINS = {
     "fully_dynamic_input_shape": Severity.WARNING,
     "duplicate_node_name": Severity.WARNING,
     "large_constant": Severity.INFO,
+    "input_with_no_type": Severity.CRITICAL,
+    "opset_too_old": Severity.WARNING,
+    "isolated_node": Severity.WARNING,
 }
 
 
@@ -146,11 +149,8 @@ def test_every_db_key_is_emitted_operator_owned_or_reserved() -> None:
     # Defined but not yet emitted by any checker (reserved for future/alternative
     # findings, incl. the CRITICAL If-mismatch the heuristic If check avoids).
     reserved = {
-        "isolated_node",
         "in_place_aliasing",
-        "opset_too_old",
         "external_data_missing",
-        "input_with_no_type",
         "if_branch_shape_mismatch",
     }
     assert remediation.known_ids() == emitted | operator_owned | reserved, (
