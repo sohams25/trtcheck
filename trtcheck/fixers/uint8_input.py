@@ -50,10 +50,26 @@ class Uint8InputFixer:
             if to_attr is None or to_attr.i != TensorProto.FLOAT:
                 continue
 
+            output_names = {out.name for out in graph.output}
+            # Refuse when the input is itself a graph output (a passthrough).
+            # Promoting it to FLOAT would leave the same-named output still
+            # declaring UINT8 -- a model that fails full type inference.
+            if inp.name in output_names:
+                continue
+            cast_output = node.output[0]
+            # Refuse when the Cast's output is itself a graph output. Rewiring it
+            # to the input name and deleting the Cast would leave that output
+            # with no producer and alias it to the input -- a degenerate
+            # input==output identity (a node-less graph for a single-Cast model)
+            # that TensorRT cannot build a meaningful engine from. Leave it for
+            # the user, consistent with the fixers' "skip if not unambiguously
+            # safe" contract.
+            if cast_output in output_names:
+                continue
+
             # Safe to rewrite:
             #   - promote input dtype to FLOAT
             #   - delete the Cast node, rewire its output to point at the input
-            cast_output = node.output[0]
             inp.type.tensor_type.elem_type = TensorProto.FLOAT
             for other in graph.node:
                 if other is node:
@@ -61,10 +77,8 @@ class Uint8InputFixer:
                 for i, name in enumerate(other.input):
                     if name == cast_output:
                         other.input[i] = inp.name
-            # Also update graph outputs that may reference cast_output
-            for out in graph.output:
-                if out.name == cast_output:
-                    out.name = inp.name
+            # cast_output is guaranteed not to be a graph output here (refused
+            # above), so every consumer was an interior node rewired in place.
             graph.node.remove(node)
 
             applied.append(

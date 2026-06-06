@@ -4,7 +4,21 @@ from __future__ import annotations
 
 import html
 
+from trtcheck._text import strip_unsafe
 from trtcheck.types import AnalysisReport, Severity
+
+
+def _safe(text: str) -> str:
+    """Sanitize untrusted model-derived text for HTML output.
+
+    ``html.escape`` neutralizes ``< > & " '`` but does NOT touch ASCII control
+    characters (NUL/ESC/BEL) or Unicode bidi overrides -- a NUL makes the
+    document byte-invalid and an embedded ANSI escape corrupts any terminal that
+    later cats the .html. Strip those first (the same class the console reporter
+    drops), then escape. Keeps the two formats' safety contract in lock-step.
+    """
+    return html.escape(strip_unsafe(text))
+
 
 _CSS = """
 :root {
@@ -104,7 +118,7 @@ class HTMLReporter:
                 "<!doctype html>",
                 '<html lang="en"><head>',
                 '<meta charset="utf-8">',
-                f"<title>trtcheck report -- {html.escape(report.filename)}</title>",
+                f"<title>trtcheck report -- {_safe(report.filename)}</title>",
                 f"<style>{_CSS}</style>",
                 "</head><body>",
                 self.render_fragment(report),
@@ -127,7 +141,7 @@ class HTMLReporter:
         parts.append(f'<div class="verdict {verdict_class}">')
         parts.append(f"<h2>{verdict_title}</h2>")
         parts.append('<div class="meta">')
-        parts.append(f"<span><code>{html.escape(report.filename)}</code></span>")
+        parts.append(f"<span><code>{_safe(report.filename)}</code></span>")
         parts.append(f"<span>opset {report.opset_version}</span>")
         parts.append(f"<span>{report.total_nodes} nodes</span>")
         parts.append(f"<span>{report.critical_count} critical</span>")
@@ -152,7 +166,7 @@ class HTMLReporter:
                 # smuggle in a javascript: or data: URI.
                 if issue.docs_link and issue.docs_link.startswith(("http://", "https://")):
                     docs_cell = (
-                        f'<a href="{html.escape(issue.docs_link)}" '
+                        f'<a href="{_safe(issue.docs_link)}" '
                         f'target="_blank" rel="noopener">link</a>'
                     )
                 else:
@@ -160,10 +174,10 @@ class HTMLReporter:
                 parts.append(
                     "<tr>"
                     f'<td><span class="sev {sev}">{sev.upper()}</span></td>'
-                    f"<td><code>{html.escape(issue.node_name)}</code></td>"
-                    f"<td><code>{html.escape(issue.operator)}</code></td>"
-                    f"<td>{html.escape(issue.message)}</td>"
-                    f"<td>{html.escape(issue.remediation)}</td>"
+                    f"<td><code>{_safe(issue.node_name)}</code></td>"
+                    f"<td><code>{_safe(issue.operator)}</code></td>"
+                    f"<td>{_safe(issue.message)}</td>"
+                    f"<td>{_safe(issue.remediation)}</td>"
                     f'<td class="docs">{docs_cell}</td>'
                     "</tr>"
                 )
@@ -187,19 +201,19 @@ class HTMLReporter:
                 '<html lang="en"><head>',
                 '<meta charset="utf-8">',
                 "<title>trtcheck diff -- "
-                + html.escape(before.filename)
+                + _safe(before.filename)
                 + " vs "
-                + html.escape(after.filename)
+                + _safe(after.filename)
                 + "</title>",
                 f"<style>{_CSS}</style>",
                 "</head><body>",
                 '<div class="diff-grid">',
                 '<div class="diff-column">',
-                f'<h2 class="col-title">before: {html.escape(before.filename)}</h2>',
+                f'<h2 class="col-title">before: {_safe(before.filename)}</h2>',
                 self.render_fragment(before),
                 "</div>",
                 '<div class="diff-column">',
-                f'<h2 class="col-title">after: {html.escape(after.filename)}</h2>',
+                f'<h2 class="col-title">after: {_safe(after.filename)}</h2>',
                 self.render_fragment(after),
                 "</div>",
                 "</div>",

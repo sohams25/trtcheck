@@ -18,7 +18,7 @@ import onnx
 from onnx import TensorProto, numpy_helper
 
 from trtcheck._graph import iter_subgraphs
-from trtcheck.fixers import FixApplied
+from trtcheck.fixers import FixApplied, sync_value_info_dtype
 
 _FP32_MAX = np.finfo(np.float32).max
 
@@ -47,6 +47,9 @@ class Float64ToFloat32Fixer:
             new_arr = arr.astype(np.float32)
             new_init = numpy_helper.from_array(new_arr, name=init.name)
             init.CopyFrom(new_init)
+            # Retype any same-named graph input/output so the fixed model still
+            # passes full type inference (see sync_value_info_dtype).
+            sync_value_info_dtype(graph, init.name, TensorProto.FLOAT)
             applied.append(
                 FixApplied(
                     fixer=self.name,

@@ -35,6 +35,28 @@ class FixApplied:
         }
 
 
+def sync_value_info_dtype(graph: onnx.GraphProto, name: str, elem_type: int) -> None:
+    """Retype any graph input/output ``ValueInfo`` named ``name`` to ``elem_type``.
+
+    ONNX legally permits an initializer name to also appear in ``graph.input``
+    (the initializer supplies the input's default) or ``graph.output``. When a
+    fixer rewrites that initializer's dtype it MUST update the matching
+    ``ValueInfoProto`` too -- otherwise the input/output still declares the old
+    element type and the model fails full type inference
+    (``onnx.checker.check_model(..., full_check=True)``), shipping a corrupt
+    ``--fix`` artifact that the shallow default checker never catches.
+
+    Only existing ``tensor_type`` value-infos are touched: a sequence/optional
+    input (or one with no declared type) is left alone rather than having a
+    tensor type fabricated for it.
+    """
+    for value_info in list(graph.input) + list(graph.output):
+        if value_info.name != name:
+            continue
+        if value_info.type.WhichOneof("value") == "tensor_type":
+            value_info.type.tensor_type.elem_type = elem_type
+
+
 def apply_all(
     model: onnx.ModelProto,
     fixers: list[Fixer],
@@ -68,4 +90,10 @@ def default_fixers() -> list[Fixer]:
     ]
 
 
-__all__ = ["Fixer", "FixApplied", "apply_all", "default_fixers"]
+__all__ = [
+    "Fixer",
+    "FixApplied",
+    "apply_all",
+    "default_fixers",
+    "sync_value_info_dtype",
+]

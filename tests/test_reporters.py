@@ -149,6 +149,99 @@ def test_html_reporter_drops_non_http_docs_link() -> None:
     assert "alert(1)" not in out
 
 
+def test_html_suppresses_data_uri_docs_link() -> None:
+    """A data: URI is as dangerous as javascript: -- the http(s)-only allow-list
+    must drop it too. Guards against a future refactor to a 'javascript:'
+    deny-list that would silently reopen the data: hole.
+    """
+    r = AnalysisReport(
+        filename="x.onnx",
+        onnx_ir_version="8",
+        opset_version=17,
+        producer="p",
+        total_nodes=1,
+        issues=[
+            Issue(
+                severity=Severity.CRITICAL,
+                category=CheckCategory.OPERATOR_SUPPORT,
+                node_name="n",
+                operator="Op",
+                message="msg",
+                remediation="fix",
+                docs_link="data:text/html,<script>alert(1)</script>",
+            )
+        ],
+    )
+    out = HTMLReporter().render(r)
+    assert 'href="data:' not in out
+    assert "<script>alert(1)</script>" not in out
+    assert ">link</a>" not in out
+
+
+def test_all_reporters_agree_on_issue_set() -> None:
+    """The three formats must agree on the issue set -- a silent divergence
+    between the machine verdict (JSON, used for CI gating) and the human-visible
+    console/HTML report would be a real correctness risk.
+    """
+    severities = [
+        Severity.CRITICAL,
+        Severity.CRITICAL,
+        Severity.WARNING,
+        Severity.WARNING,
+        Severity.INFO,
+        Severity.INFO,
+    ]
+    categories = [
+        CheckCategory.OPERATOR_SUPPORT,
+        CheckCategory.PRECISION,
+        CheckCategory.DYNAMIC_SHAPES,
+        CheckCategory.CONTROL_FLOW,
+        CheckCategory.GRAPH_STRUCTURE,
+        CheckCategory.OPERATOR_SUPPORT,
+    ]
+    issues = [
+        Issue(
+            severity=sev,
+            category=cat,
+            node_name=f"node_{idx}",
+            operator=f"OperatorKind{idx}",
+            message=f"message {idx}",
+            remediation=f"remediation {idx}",
+            docs_link=None,
+        )
+        for idx, (sev, cat) in enumerate(zip(severities, categories))
+    ]
+    report = AnalysisReport(
+        filename="agree.onnx",
+        onnx_ir_version="8",
+        opset_version=17,
+        producer="p",
+        total_nodes=6,
+        issues=issues,
+    )
+
+    json_payload = json.loads(JSONReporter().render(report))
+    json_ops = sorted(i["operator"] for i in json_payload["issues"])
+    assert json_payload["critical_count"] == 2
+    assert json_payload["warning_count"] == 2
+    assert json_payload["info_count"] == 2
+
+    html_out = HTMLReporter().render(report)
+    console_out = ConsoleReporter(color=False).render(report)
+
+    # Every operator name surfaces in every format.
+    expected_ops = sorted(i.operator for i in issues)
+    assert json_ops == expected_ops
+    for op in expected_ops:
+        assert op in html_out, f"HTML dropped operator {op}"
+        assert op in console_out, f"console dropped operator {op}"
+
+    # Per-severity counts agree between JSON and HTML (HTML renders one sev badge
+    # per issue row).
+    for sev, count in (("critical", 2), ("warning", 2), ("info", 2)):
+        assert html_out.count(f"sev {sev}") == count
+
+
 def test_html_render_fragment_excludes_document_wrappers() -> None:
     """render_fragment must return just the inner content for safe splicing."""
     r = AnalysisReport(

@@ -72,3 +72,48 @@ class TestUint8Input:
     def test_clean_model_emits_no_fixes(self, clean_model: onnx.ModelProto) -> None:
         new_model, applied = apply_all(clean_model, [Uint8InputFixer()])
         assert applied == []
+
+    def test_uint8_input_is_also_graph_output_is_refused(self) -> None:
+        """The UINT8 input is forwarded directly to a graph output (a legal
+        passthrough) *and* feeds a single Cast. Promoting the input to FLOAT
+        would leave the same-named output still declaring UINT8 -- a model that
+        fails full type inference. The fixer must refuse rather than emit it.
+        """
+        inp = helper.make_tensor_value_info("img", TensorProto.UINT8, [1, 3, 8, 8])
+        out_pass = helper.make_tensor_value_info("img", TensorProto.UINT8, [1, 3, 8, 8])
+        out_main = helper.make_tensor_value_info("out", TensorProto.FLOAT, [1, 3, 8, 8])
+        cast = helper.make_node("Cast", ["img"], ["casted"], name="cast_1", to=TensorProto.FLOAT)
+        ident = helper.make_node("Identity", ["casted"], ["out"], name="ident")
+        graph = helper.make_graph([cast, ident], "m", [inp], [out_pass, out_main])
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+        model.ir_version = 8
+        # Premise: the input model is valid under full type inference.
+        onnx.checker.check_model(model, full_check=True)
+
+        new_model, applied = apply_all(model, [Uint8InputFixer()])
+        assert applied == [], "fixer must refuse promoting an input that is also a graph output"
+        assert new_model.graph.input[0].type.tensor_type.elem_type == TensorProto.UINT8
+        onnx.checker.check_model(new_model, full_check=True)
+
+    def test_uint8_cast_output_is_graph_output_is_refused(self) -> None:
+        """When the redundant Cast's output is itself the graph output, the naive
+        rewrite renames the output to the input name and removes the node,
+        collapsing the graph into a degenerate node-less input==output identity.
+        The fixer must refuse instead of emitting that silently-wrong rewrite.
+        """
+        inp = helper.make_tensor_value_info("img", TensorProto.UINT8, [1, 3, 8, 8])
+        out = helper.make_tensor_value_info("out", TensorProto.FLOAT, [1, 3, 8, 8])
+        cast = helper.make_node("Cast", ["img"], ["out"], name="cast_1", to=TensorProto.FLOAT)
+        graph = helper.make_graph([cast], "m", [inp], [out])
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+        model.ir_version = 8
+
+        new_model, applied = apply_all(model, [Uint8InputFixer()])
+        assert applied == [], "fixer must refuse a rewrite that yields input==output identity"
+        # Untouched: input stays UINT8, the Cast is still present and producing a
+        # distinctly-named output.
+        assert new_model.graph.input[0].type.tensor_type.elem_type == TensorProto.UINT8
+        assert [n.op_type for n in new_model.graph.node] == ["Cast"]
+        input_names = {i.name for i in new_model.graph.input}
+        output_names = {o.name for o in new_model.graph.output}
+        assert input_names.isdisjoint(output_names)
