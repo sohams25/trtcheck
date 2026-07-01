@@ -28,7 +28,7 @@ invoking `trtexec`.
 | Checker | Catches |
 |---|---|
 | operator support | Ops missing or partial in the target TRT version |
-| precision | UINT8 / FLOAT64 / STRING inputs, INT64 weights, BF16 on older targets |
+| precision | UINT8 / INT64 / FLOAT64 / STRING / BF16 inputs, INT64 weights, FLOAT64 from a Cast or Constant |
 | dynamic shapes | Multiple symbolic dims on inputs |
 | control flow | `Loop` with runtime trip count, nested `Loop`, `If`, `Scan` |
 | graph structure | Empty outputs, duplicate node names, oversized constants |

@@ -1,14 +1,24 @@
-"""Rewrite deprecated Upsample nodes to Resize.
+"""Rewrite leftover deprecated Upsample nodes to Resize.
 
-Upsample was deprecated after ONNX opset 9 in favour of Resize. TRT prefers
-Resize and the two ops are equivalent for the simple cases this fixer
-handles. The fixer ONLY rewrites:
+Upsample was deprecated after ONNX opset 9 in favour of Resize, but some
+exporters still emit Upsample nodes into higher-opset graphs, where the
+op is no longer legal. That leftover is this fixer's target: on an
+opset-13+ model it swaps the node for the equivalent Resize, which both
+onnx.checker and TensorRT accept.
 
+Scope, precisely:
+
+  - model opset >= 13 (the 4-input Resize form with empty roi/sizes
+    placeholders only validates from 13)
   - mode = nearest or linear
-  - Upsample opset 9 form: inputs are (X, scales), mode is an attribute
+  - the (X, scales) input form with mode as an attribute
 
-Anything else (mode=cubic, scales as attribute, etc.) is left alone --
-those edge cases need human review.
+A conformant opset-9 model is deliberately left alone: rewriting its
+Upsample to Resize would produce a node its own opset does not define.
+The right move there is a whole-model opset bump
+(``onnx.version_converter.convert_version``) first, then a re-run.
+Anything else (mode=cubic, scales as attribute, ...) also stays
+untouched; those edge cases need human review.
 
 The rewrite preserves the original output name so downstream consumers
 need no edits.

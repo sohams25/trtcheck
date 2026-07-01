@@ -5,6 +5,38 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
 ## [Unreleased]
 
+### Fixed
+- The README / case-study `--fix` walkthrough is reproducible again. The
+  bundled `uint8_input.onnx` fixture was the degenerate
+  input→Cast→output shape the fixer deliberately refuses (rewriting it
+  would leave a node-less graph), so the documented demo silently
+  no-opped. The fixture now carries a downstream Relu — the realistic
+  preprocessing-cast pattern — and a regression test pins the full
+  fixture→fix→re-check contract. Case study and demo SVG updated to the
+  real CLI output.
+- Plugin fixers and reporters are now actually executed. Discovery
+  worked, but `--fix` only ran the five built-ins and `--format` was a
+  closed choice, so a third-party fixer (like the shipped
+  `strip_identity` example) was listed by `--list-plugins` and then
+  ignored. `--fix` now appends discovered fixers (isolated: a crashing
+  plugin is skipped with a stderr warning), and `--format` accepts a
+  plugin reporter name alongside `console`/`json`/`html`.
+- `--disable-plugin` with a name that matches nothing now warns on
+  stderr instead of silently no-opping, so a typo can't leave a checker
+  enabled unnoticed.
+- Demo SVG: the issue-table header used run-length spaces for fake
+  column alignment, which SVG collapses — it rendered as one cramped
+  line. Header cells now share the data rows' column positions, and the
+  depicted output matches the CLI verbatim.
+
+### Removed
+- `--verbose/--quiet`: with `--severity` defaulting to `info`, the flag
+  was a documented no-op. Use `--severity` directly.
+- `estimated_fusions` / `estimated_precision` from `AnalysisReport` and
+  the JSON report: spec-era scaffolding that nothing ever populated,
+  removed before anyone can depend on two always-empty keys. (If you
+  parsed them, they were always `[]` / `{}`.)
+
 ### Added
 - `SCORECARD.md`: first published run of the `bench/` validation harness.
   9-model corpus (3 ONNX Model Zoo models + 6 bundled fixtures), scored at
@@ -34,6 +66,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   Action's default `version` input must agree.
 
 ### Changed
+- Operator matrix: `Scan` on TRT 10.0/10.3 corrected from `partial` to
+  `supported`, matching the upstream onnx-tensorrt table (the one real
+  mismatch `tools/check_matrix_drift.py` reported). The
+  static-sequence-length caveat stays as the operator note and the
+  control-flow warning.
+- New `docs` extra (`pip install -e ".[dev,docs]"`) so the
+  `mkdocs serve` step in README/CONTRIBUTING works without an ad-hoc
+  install; README Action-inputs table now lists `base-ref` and
+  `source-path`; assorted doc drift fixed (CI matrix in CONTRIBUTING,
+  Python badge, flag tables, stale fixture paths).
 - `bench/manifest.yaml`: replaced the dead `yolov8n_static` URL (asset no
   longer published) with `squeezenet1_1` from the ONNX Model Zoo, and pinned
   SHA-256 hashes for all three URL-sourced models.
