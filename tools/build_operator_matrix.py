@@ -180,7 +180,10 @@ OPERATORS: dict[str, dict[str, Any]] = {
         ],
     },
     "Scan": {
-        "support": expand("P", "P", "P", "P"),
+        # Upstream onnx-tensorrt marks Scan supported on TRT 10.x (caught by
+        # check_matrix_drift, 2026-07). The static-sequence-length constraint
+        # stays as the note here and as the control_flow checker's warning.
+        "support": expand("P", "P", "S", "S"),
         "notes": "Sequence length must be known at build time.",
     },
     # Misc
