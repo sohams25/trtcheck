@@ -41,6 +41,11 @@ dev = [
     # bench/score.py and tools/validate_bench_manifest.py parse yaml
     # manifests; both are imported by tests in collection.
     "pyyaml>=6.0",
+    # ponytail: numpy 2.5 stubs use PEP 695 `type` statements, which mypy
+    # cannot parse under python_version = "3.10" and aborts the whole run.
+    # Drop the pin when the repo drops py3.10 or mypy parses them regardless
+    # of target version. Dev-only; runtime numpy stays unpinned via onnx.
+    "numpy<2.5",
 ]
 
 [project.scripts]

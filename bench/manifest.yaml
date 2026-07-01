@@ -22,16 +22,19 @@ models:
     source: https://github.com/onnx/models/raw/main/validated/vision/classification/resnet/model/resnet50-v2-7.onnx
     expected: convert
     reason: none
+    sha256: 79102261eb6e5fd7af5d27f41316293e388c5cb691e5d25bfb035c4f64fefe31
 
   - name: mobilenetv2_1_0
     source: https://github.com/onnx/models/raw/main/validated/vision/classification/mobilenet/model/mobilenetv2-12.onnx
     expected: convert
     reason: none
+    sha256: c0c3f76d93fa3fd6580652a45618618a220fced18babf65774ed169de0432ad5
 
-  - name: yolov8n_static
-    source: https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.onnx
+  - name: squeezenet1_1
+    source: https://github.com/onnx/models/raw/main/validated/vision/classification/squeezenet/model/squeezenet1.1-7.onnx
     expected: convert
     reason: none
+    sha256: 1eeff551a67ae8d565ca33b572fc4b66e3ef357b0eb2863bb9ff47a918cc4088
 
   # Bundled failing fixtures exercise the scoring pipeline offline.
   - name: bundled_sequence_empty

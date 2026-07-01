@@ -1,0 +1,31 @@
+{
+  "predictions": {
+    "resnet50_v2": {
+      "trtcheck": "convert"
+    },
+    "mobilenetv2_1_0": {
+      "trtcheck": "convert"
+    },
+    "squeezenet1_1": {
+      "trtcheck": "convert"
+    },
+    "bundled_sequence_empty": {
+      "trtcheck": "fail"
+    },
+    "bundled_uint8_input": {
+      "trtcheck": "fail"
+    },
+    "bundled_int64_weights": {
+      "trtcheck": "convert"
+    },
+    "bundled_control_flow_loop": {
+      "trtcheck": "fail"
+    },
+    "bundled_fully_dynamic": {
+      "trtcheck": "convert"
+    },
+    "bundled_clean_minimal": {
+      "trtcheck": "convert"
+    }
+  }
+}

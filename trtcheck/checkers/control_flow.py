@@ -3,8 +3,10 @@
 The TRT support story for these ops has a few well-known sharp edges:
 
   - Loop: trip count must be a graph-internal constant or shape-inferable.
-    Runtime tensor inputs as trip count are silently rejected at engine
-    build time.
+    A trip count fed straight from a graph input is runtime-dynamic by
+    construction and is rejected at engine build time (critical). A trip
+    count computed by an internal node may still be shape-inferable, so it
+    only warns.
   - Loop: nested loops are not supported at any TRT version.
   - If: both branches must produce identically-shaped, identically-typed
     outputs. We don't fully verify this here (shape inference would be
@@ -29,7 +31,13 @@ from trtcheck.types import Issue
 # `if_branch_shape_mismatch` -- we cannot confirm a mismatch without shape
 # inference, so flagging every If as critical would wrongly fail every model.
 EMITS = frozenset(
-    {"loop_dynamic_trip_count", "nested_loop", "if_detected_unverified", "scan_dynamic_length"}
+    {
+        "loop_runtime_trip_count",
+        "loop_dynamic_trip_count",
+        "nested_loop",
+        "if_detected_unverified",
+        "scan_dynamic_length",
+    }
 )
 
 
@@ -47,9 +55,10 @@ class ControlFlowChecker:
         # names as "statically known" -- over-approximating here avoids false
         # "runtime trip count" warnings for outer-scope constants.
         initializer_names = {init.name for init, _ in iter_initializers(model.graph)}
+        graph_input_names = {inp.name for inp in model.graph.input}
         for node, _graph in iter_nodes(model.graph):
             if node.op_type == "Loop":
-                issues.extend(self._check_loop(node, initializer_names))
+                issues.extend(self._check_loop(node, initializer_names, graph_input_names))
             elif node.op_type == "If":
                 issues.append(self._check_if(node))
             elif node.op_type == "Scan":
@@ -62,21 +71,30 @@ class ControlFlowChecker:
         self,
         node: onnx.NodeProto,
         initializer_names: set[str],
+        graph_input_names: set[str],
     ) -> list[Issue]:
         issues: list[Issue] = []
         name = node.name or "<Loop>"
 
         # Inputs to Loop: [M (trip count), cond, ...loop_state]
-        # If the trip count input is not an initializer (i.e., it's a runtime
-        # tensor or computed) we flag it.
+        # A trip count fed from a graph input is runtime-dynamic by
+        # construction -- critical. One computed by an internal node may
+        # still be shape-inferable by TRT -- warning only.
         trip_input = node.input[0] if len(node.input) > 0 else ""
         if trip_input and trip_input not in initializer_names:
+            is_runtime = trip_input in graph_input_names
             issues.append(
                 remediation.make_issue(
-                    "loop_dynamic_trip_count",
+                    "loop_runtime_trip_count" if is_runtime else "loop_dynamic_trip_count",
                     node_name=name,
                     operator="Loop",
-                    prefix=f"Loop '{node.name}' uses input '{trip_input}' as its trip count",
+                    prefix=f"Loop '{node.name}' uses "
+                    + (
+                        f"graph input '{trip_input}'"
+                        if is_runtime
+                        else f"computed value '{trip_input}'"
+                    )
+                    + " as its trip count",
                 )
             )
 

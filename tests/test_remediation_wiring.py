@@ -68,6 +68,7 @@ _SEVERITY_PINS = {
     "int64_input": Severity.WARNING,
     "bf16_unsupported": Severity.WARNING,
     "if_detected_unverified": Severity.WARNING,
+    "loop_runtime_trip_count": Severity.CRITICAL,
     "loop_dynamic_trip_count": Severity.WARNING,
     "scan_dynamic_length": Severity.WARNING,
     "fully_dynamic_input_shape": Severity.WARNING,

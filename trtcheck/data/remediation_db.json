@@ -79,11 +79,19 @@
       "explanation": "ONNX permits non-unique node names but several TRT tooling paths (engine introspection, layer-precision overrides) assume uniqueness.",
       "remediation": "Set unique node names during export, or run an ONNX simplifier pass before TRT conversion."
     },
+    "loop_runtime_trip_count": {
+      "category": "control_flow",
+      "severity": "critical",
+      "summary": "Loop trip count fed from a graph input.",
+      "explanation": "TensorRT requires a statically known or shape-inferable trip count for Loop. A trip count read from a graph input is runtime-dynamic by construction and fails at engine build time.",
+      "remediation": "Refactor the loop to use a fixed iteration count baked into the graph. If the count depends on input size, consider unrolling or a fully-vectorized formulation.",
+      "docs_link": "https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#loops"
+    },
     "loop_dynamic_trip_count": {
       "category": "control_flow",
       "severity": "warning",
       "summary": "Loop op with non-constant trip count.",
-      "explanation": "TensorRT requires a statically known or shape-inferable trip count for Loop. Dynamic trip counts derived from runtime tensor values fail at build time.",
+      "explanation": "TensorRT requires a statically known or shape-inferable trip count for Loop. This trip count is computed inside the graph; TRT may still infer it, but if it depends on runtime tensor values the engine build fails.",
       "remediation": "Refactor the loop to use a fixed iteration count. If the count depends on input size, consider unrolling or a fully-vectorized formulation.",
       "docs_link": "https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#loops"
     },

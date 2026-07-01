@@ -6,6 +6,19 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 ## [Unreleased]
 
 ### Added
+- `SCORECARD.md`: first published run of the `bench/` validation harness.
+  9-model corpus (3 ONNX Model Zoo models + 6 bundled fixtures), scored at
+  the CI gate configuration (`--severity critical`, TRT 10.3): precision
+  1.000, recall 1.000. Raw predictions committed as `bench/outcomes.json`.
+- `bench/predict.py`: the trtcheck leg of the harness as a real script
+  (replaces the inline wrapper in `bench/README.md`); defaults to the
+  invoking interpreter's trtcheck, writes `bench/outcomes.json`.
+- New critical check `loop_runtime_trip_count`: a Loop trip count fed
+  straight from a graph input is runtime-dynamic by construction and always
+  fails the TRT engine build, so it now fails the verdict. Found by the
+  first scorecard run — the fixture scored as a false negative at
+  `--severity critical`. A trip count computed by an internal node (possibly
+  shape-inferable) keeps the `loop_dynamic_trip_count` warning.
 - Scheduled `matrix-drift` GitHub Action (`.github/workflows/matrix-drift.yml`).
   Runs `tools/check_matrix_drift.py` weekly (Mondays at 04:17 UTC) plus
   on `workflow_dispatch`. On drift, opens or refreshes a single rolling
@@ -21,6 +34,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   Action's default `version` input must agree.
 
 ### Changed
+- `bench/manifest.yaml`: replaced the dead `yolov8n_static` URL (asset no
+  longer published) with `squeezenet1_1` from the ONNX Model Zoo, and pinned
+  SHA-256 hashes for all three URL-sourced models.
 - `tools/check_matrix_drift.py` is version-aware: it locates the upstream status
   column by header (supporting "TensorRT"/"TRT" and non-second-column layouts),
   tags it with the TRT major, and refuses to diff a `--target` the table does
