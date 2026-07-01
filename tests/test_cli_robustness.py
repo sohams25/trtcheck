@@ -102,15 +102,13 @@ def test_diff_console_refuses_overwrite_without_force(
     assert out.read_text() == "keep me"
 
 
-def test_explicit_severity_wins_over_verbose(runner: CliRunner, fixture_dir: Path) -> None:
-    """`--verbose --severity critical` must honour 'critical', not reset to info."""
+def test_severity_critical_filters_to_criticals_only(runner: CliRunner, fixture_dir: Path) -> None:
     import json
 
     result = runner.invoke(
         main,
         [
             str(fixture_dir / "failing" / "uint8_input.onnx"),
-            "--verbose",
             "--severity",
             "critical",
             "--format",
@@ -118,6 +116,7 @@ def test_explicit_severity_wins_over_verbose(runner: CliRunner, fixture_dir: Pat
         ],
     )
     payload = json.loads(result.output)
+    assert payload["issues"], "uint8 fixture must report at least one critical"
     assert all(i["severity"] == "critical" for i in payload["issues"])
 
 

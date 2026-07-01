@@ -37,15 +37,17 @@ trtcheck model.onnx --fix --output fixed.onnx
 | Flag | Default | Meaning |
 |---|---|---|
 | `--target-trt` | `10.3` | TensorRT version to check against |
-| `--format` | `console` | `console`, `json`, or `html` |
+| `--format` | `console` | `console`, `json`, `html`, or a plugin reporter name |
 | `--output` | (stdout) | Write the report to this path |
 | `--severity` | `info` | Minimum severity to include |
-| `--verbose` | off | Lowers severity threshold to `info` |
 | `--diff` | off | Compare two ONNX files |
 | `--force` | off | Allow `--output` to overwrite existing files |
 | `--max-model-size` | `500` | Refuse to load ONNX files larger than this (MB) |
-| `--fix` | off | Apply built-in fixers; writes to `--output` |
+| `--fix` | off | Apply built-in and plugin fixers; writes to `--output` |
 | `--dry-run` | off | With `--fix`, print changes without writing |
+| `--list-plugins` | off | Print discovered checkers, fixers, and reporters, then exit |
+| `--disable-plugin NAME` | (none) | Exclude a checker, fixer, or reporter by name; repeatable |
+| `-h`, `--help` | | Full CLI reference |
 
 ## CI integration
 

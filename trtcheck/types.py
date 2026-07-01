@@ -73,9 +73,6 @@ class AnalysisReport:
     total_nodes: int
     issues: list[Issue] = field(default_factory=list)
 
-    estimated_fusions: list[str] = field(default_factory=list)
-    estimated_precision: dict[str, int] = field(default_factory=dict)
-
     @property
     def critical_count(self) -> int:
         return sum(1 for i in self.issues if i.severity is Severity.CRITICAL)
@@ -115,8 +112,6 @@ class AnalysisReport:
             "critical_count": self.critical_count,
             "warning_count": self.warning_count,
             "info_count": self.info_count,
-            "estimated_fusions": list(self.estimated_fusions),
-            "estimated_precision": dict(self.estimated_precision),
             "conversion_likely": self.conversion_likely,
             "estimated_fix_time": self.estimated_fix_time,
         }

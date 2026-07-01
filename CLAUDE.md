@@ -48,7 +48,7 @@ trtcheck/
 │   ├── test_analyzer.py
 │   ├── test_checkers.py
 │   └── fixtures/                # Intentionally broken ONNX files
-│       ├── resnet50_clean.onnx
+│       ├── clean_minimal.onnx
 │       ├── failing/
 │       │   ├── sequence_empty.onnx
 │       │   ├── int64_weights.onnx
@@ -99,7 +99,7 @@ python -m py_compile <file>
 
 After checker implementation:
 ```bash
-pytest tests/test_checkers.py -k <checker_name> -v
+pytest tests/test_checkers_*.py -k <checker_name> -v
 ```
 
 After reporter implementation:
@@ -144,7 +144,7 @@ pytest tests/ -v --cov=trtcheck --cov-report=term-missing
 ### Single Test
 
 ```bash
-pytest tests/test_checkers.py::test_sequence_empty_detected -v
+pytest tests/test_checkers_*.py::test_sequence_empty_detected -v
 ```
 
 ### Type Check
@@ -162,8 +162,8 @@ black . && isort .
 ### Run CLI Locally
 
 ```bash
-python -m trtcheck tests/fixtures/resnet50_clean.onnx
-python -m trtcheck tests/fixtures/failing/sequence_empty.onnx --verbose
+python -m trtcheck tests/fixtures/clean_minimal.onnx
+python -m trtcheck tests/fixtures/failing/sequence_empty.onnx
 ```
 
 ### Install in Editable Mode (for ECC sessions)
@@ -190,7 +190,7 @@ The TDD cycle:
 **Example — Adding a new checker:**
 
 ```python
-# Step 1: TDD-Agent writes this FIRST (tests/test_checkers.py)
+# Step 1: TDD-Agent writes this FIRST (tests/test_checkers_*.py)
 def test_cast_uint8_to_fp32_detected_as_warning():
     """UINT8 inputs are common in image preprocessing but TensorRT prefers FP32/INT8."""
     model = _create_onnx_with_cast(from_type=TensorProto.UINT8, to_type=TensorProto.FLOAT)
@@ -352,8 +352,6 @@ trtcheck model.onnx --format html --output report.html
 trtcheck model.onnx --severity critical       # Only show blockers
 trtcheck model.onnx --severity warning        # Critical + warnings
 
-# Verbose: show info-level too (what WILL work)
-trtcheck model.onnx --verbose
 
 # Diff two ONNX files (before/after fix)
 trtcheck model_v1.onnx model_v2.onnx --diff

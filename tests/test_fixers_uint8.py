@@ -1,10 +1,14 @@
 """Tests for Uint8InputFixer."""
 
+from pathlib import Path
+
 import onnx
 from onnx import TensorProto, helper
 
+from trtcheck.checkers.precision import PrecisionChecker
 from trtcheck.fixers import apply_all
 from trtcheck.fixers.uint8_input import Uint8InputFixer
+from trtcheck.types import Severity
 
 
 def _uint8_then_cast(cast_to: int = TensorProto.FLOAT) -> onnx.ModelProto:
@@ -72,6 +76,19 @@ class TestUint8Input:
     def test_clean_model_emits_no_fixes(self, clean_model: onnx.ModelProto) -> None:
         new_model, applied = apply_all(clean_model, [Uint8InputFixer()])
         assert applied == []
+
+    def test_committed_fixture_is_fixable_end_to_end(self, fixture_dir: Path) -> None:
+        """The README and case-study demo contract: the shipped uint8 fixture
+        must be a shape the fixer actually rewrites -- promote the input, drop
+        the Cast, clear the critical. Guards against regressing the fixture
+        into one of the degenerate shapes the fixer refuses.
+        """
+        model = onnx.load(str(fixture_dir / "failing" / "uint8_input.onnx"))
+        new_model, applied = apply_all(model, [Uint8InputFixer()])
+        assert [a.fixer for a in applied] == ["uint8_input"]
+        onnx.checker.check_model(new_model, full_check=True)
+        crits = [i for i in PrecisionChecker().check(new_model) if i.severity is Severity.CRITICAL]
+        assert crits == []
 
     def test_uint8_input_is_also_graph_output_is_refused(self) -> None:
         """The UINT8 input is forwarded directly to a graph output (a legal

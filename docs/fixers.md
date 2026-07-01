@@ -40,9 +40,12 @@ Dropout's mask output is referenced anywhere.
 
 ### `upsample_to_resize`
 
-Rewrites deprecated `Upsample` ops to `Resize` (mode `nearest` or
-`linear`). Refuses if the graph opset is below 13 -- the 4-input Resize
-form with empty `roi`/`sizes` placeholders only validates from opset 13.
+Rewrites leftover deprecated `Upsample` ops to `Resize` (mode `nearest`
+or `linear`) on opset-13+ graphs -- the shape some exporters still emit
+even though the op stopped being legal after opset 9. Refuses below
+opset 13: the 4-input Resize form with empty `roi`/`sizes` placeholders
+only validates from 13, so a conformant opset-9 model needs a
+whole-model opset bump (`onnx.version_converter`) first, then a re-run.
 
 ## How to invoke
 

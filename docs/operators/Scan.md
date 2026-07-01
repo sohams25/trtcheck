@@ -6,8 +6,8 @@
 | --- | --- |
 | 8.0 | partial |
 | 8.6 | partial |
-| 10.0 | partial |
-| 10.3 | partial |
+| 10.0 | supported |
+| 10.3 | supported |
 
 ## Notes
 

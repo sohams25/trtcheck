@@ -6,7 +6,7 @@
   <a href="https://github.com/sohams25/trtcheck/actions/workflows/ci.yml"><img alt="ci"     src="https://github.com/sohams25/trtcheck/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://pypi.org/project/trtcheck/">                                              <img alt="pypi"   src="https://img.shields.io/pypi/v/trtcheck.svg"></a>
   <a href="https://sohams25.github.io/trtcheck/">                                            <img alt="docs"   src="https://img.shields.io/badge/docs-mkdocs--material-blue"></a>
-  <a href="https://www.python.org/">                                                         <img alt="python" src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue"></a>
+  <a href="https://www.python.org/">                                                         <img alt="python" src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue"></a>
   <a href="LICENSE">                                                                         <img alt="license" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
@@ -29,9 +29,11 @@ $ trtcheck model.onnx
 ```
 CONVERSION WILL FAIL — 1 critical, 0 warning
 CRITICAL  input  Input  Input 'input' has dtype UINT8; TensorRT
-                        accepts only FP32, FP16, INT32, or INT8.
-                        → Move the UINT8→FLOAT conversion into your
-                          preprocessing pipeline rather than the model.
+                        accepts only FP32, FP16, INT32, or INT8
+                        as graph inputs.
+                        → Move the UINT8 → FLOAT32 conversion (and
+                          normalization) into your preprocessing
+                          pipeline rather than the model body.
 
 Estimated fix time: 15–30 minutes.
 ```
@@ -112,7 +114,7 @@ TRT 10.3 matrix at the CI gate configuration:
 
 | Corpus | Precision | Recall | Total wall time |
 |---|---|---|---|
-| 9 models: 3 from the ONNX Model Zoo, 6 bundled failure fixtures | 1.000 | 1.000 | 2.0 s |
+| 9 models: 3 from the ONNX Model Zoo, 6 bundled fixtures | 1.000 | 1.000 | 2.0 s |
 
 Nine models is a small corpus and the failure cases are synthetic, so
 read this as "the checks do what they claim on known patterns", not as a
@@ -133,7 +135,7 @@ to preview them first.
 | **`int64_to_int32`** | Casts `INT64` initializers to `INT32` when every value is in range |
 | **`float64_to_float32`** | Casts `FLOAT64` initializers to `FLOAT32` when no value is NaN, infinite, or out of FP32 range |
 | **`drop_dropout`** | Removes `Dropout` nodes and rewires consumers (skips nodes whose `mask` output is used) |
-| **`upsample_to_resize`** | Rewrites the deprecated `Upsample` op as `Resize` when the mode and opset allow |
+| **`upsample_to_resize`** | Rewrites leftover deprecated `Upsample` nodes as `Resize` on opset-13+ graphs (nearest / linear) |
 
 ```bash
 trtcheck model.onnx --fix --dry-run                    # preview
@@ -211,7 +213,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
       - id: trtcheck
-        uses: sohams25/trtcheck@v1.0.0
+        uses: sohams25/trtcheck@v1
         with:
           target-trt: "10.3"
           fail-on: "critical"
@@ -239,6 +241,8 @@ repo. Full template at
 | `fail-on` | `critical` | Exit policy: `critical`, `warning`, or `never` |
 | `paths` | `**/*.onnx` | Glob of files to consider |
 | `changed-only` | `true` | Only analyze PR-changed files |
+| `base-ref` | (PR base sha) | Base ref to diff against when `changed-only` is set |
+| `source-path` | (unset) | Install trtcheck from a local path instead of PyPI; used by the selftest workflow |
 
 ### Action outputs
 
@@ -290,7 +294,7 @@ Run the drift check before each release to keep the matrix honest.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,docs]"
 
 ./scripts/run-tests.sh        # full pytest suite
 mypy trtcheck/                # strict type check
