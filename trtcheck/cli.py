@@ -8,11 +8,11 @@ from pathlib import Path
 
 import click
 import onnx
-from click import ParameterSource
 
 from trtcheck import __version__
-from trtcheck.analyzer import Analyzer, AnalyzerConfig, safe_load
-from trtcheck.fixers import apply_all, default_fixers
+from trtcheck.analyzer import _BUILTIN_CHECKER_NAMES, Analyzer, AnalyzerConfig, safe_load
+from trtcheck.fixers import FixApplied, apply_all, default_fixers
+from trtcheck.plugins import Fixer, Reporter, load_plugins
 from trtcheck.reporters.console import ConsoleReporter
 from trtcheck.reporters.html import HTMLReporter
 from trtcheck.reporters.json import JSONReporter
@@ -21,6 +21,57 @@ from trtcheck.types import AnalysisReport, Severity
 _FORMATS = ["console", "json", "html"]
 _SEVERITIES = ["critical", "warning", "info"]
 _KNOWN_TARGETS = ["8.0", "8.6", "10.0", "10.3"]
+
+
+class _SafePluginFixer:
+    """Isolate a third-party fixer the way the analyzer isolates plugin
+    checkers: a crash is reported on stderr and skipped, never a traceback.
+    A partial mutation from a crashed fixer is caught downstream by the
+    onnx.checker validation before anything is written."""
+
+    def __init__(self, inner: Fixer) -> None:
+        self._inner = inner
+        self.name = getattr(inner, "name", inner.__class__.__name__)
+
+    def fix(self, model: onnx.ModelProto) -> list[FixApplied]:
+        try:
+            return self._inner.fix(model)
+        except Exception as exc:
+            click.echo(
+                f"warning: plugin fixer {self.name!r} raised "
+                f"{exc.__class__.__name__}: {exc}; skipped "
+                "(--disable-plugin to silence)",
+                err=True,
+            )
+            return []
+
+
+def _plugin_reporters(disable_plugins: tuple[str, ...] = ()) -> dict[str, Reporter]:
+    _, _, reporters = load_plugins()
+    disabled = set(disable_plugins)
+    return {
+        name: r
+        for r in reporters
+        if (name := getattr(r, "name", r.__class__.__name__)) not in disabled
+    }
+
+
+def _warn_unknown_disables(disable_plugins: tuple[str, ...]) -> None:
+    """A typo in --disable-plugin must not silently leave the target enabled."""
+    if not disable_plugins:
+        return
+    checkers, fixers, reporters = load_plugins()
+    known = {getattr(x, "name", "") for group in (checkers, fixers, reporters) for x in group}
+    known |= _BUILTIN_CHECKER_NAMES
+    known |= {f.name for f in default_fixers()}
+    known |= set(_FORMATS)
+    for name in disable_plugins:
+        if name not in known:
+            click.echo(
+                f"warning: --disable-plugin {name!r} matches no known checker, "
+                "fixer, or reporter (see --list-plugins)",
+                err=True,
+            )
 
 
 def _filter_issues(report: AnalysisReport, minimum: str) -> AnalysisReport:
@@ -44,20 +95,30 @@ def _filter_issues(report: AnalysisReport, minimum: str) -> AnalysisReport:
         producer=report.producer,
         total_nodes=report.total_nodes,
         issues=kept,
-        estimated_fusions=list(report.estimated_fusions),
-        estimated_precision=dict(report.estimated_precision),
     )
     return filtered
 
 
-def _render(report: AnalysisReport, fmt: str, *, color: bool = True) -> str:
+def _render(
+    report: AnalysisReport,
+    fmt: str,
+    *,
+    color: bool = True,
+    disable_plugins: tuple[str, ...] = (),
+) -> str:
     if fmt == "json":
         return JSONReporter().render(report)
     if fmt == "html":
         return HTMLReporter().render(report)
-    # color=False when writing to a file so the artifact is plain text, not a
-    # soup of raw ANSI escape codes.
-    return ConsoleReporter(color=color).render(report)
+    if fmt == "console":
+        # color=False when writing to a file so the artifact is plain text,
+        # not a soup of raw ANSI escape codes.
+        return ConsoleReporter(color=color).render(report)
+    plugin = _plugin_reporters(disable_plugins).get(fmt)
+    if plugin is None:
+        available = ", ".join([*_FORMATS, *_plugin_reporters(disable_plugins)])
+        raise click.BadParameter(f"unknown format {fmt!r}; available: {available}")
+    return plugin.render(report)
 
 
 def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
@@ -94,10 +155,10 @@ def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(_FORMATS),
+    metavar="[console|json|html|PLUGIN]",
     default="console",
     show_default=True,
-    help="Output format.",
+    help="Output format: a built-in or a discovered plugin reporter name.",
 )
 @click.option(
     "--output",
@@ -111,11 +172,6 @@ def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
     default="info",
     show_default=True,
     help="Minimum severity to include in the report.",
-)
-@click.option(
-    "--verbose/--quiet",
-    default=False,
-    help="Verbose mode currently equivalent to --severity info.",
 )
 @click.option(
     "--diff",
@@ -169,7 +225,6 @@ def main(
     fmt: str,
     output: Path | None,
     severity: str,
-    verbose: bool,
     diff: bool,
     force: bool,
     max_model_size: int,
@@ -187,6 +242,8 @@ def main(
       trtcheck model.onnx --format json --output report.json
       trtcheck before.onnx after.onnx --diff
     """
+    _warn_unknown_disables(disable_plugins)
+
     if list_plugins:
         _print_plugin_listing(target_trt, max_model_size, list(disable_plugins))
         return
@@ -203,7 +260,7 @@ def main(
     path = models[0]
 
     if fix_mode:
-        _run_fix(path, output, force, dry_run, max_model_size)
+        _run_fix(path, output, force, dry_run, max_model_size, disable_plugins)
         return
 
     if not path.exists():
@@ -220,16 +277,9 @@ def main(
         report = analyzer.analyze_path(path)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
-    # --verbose lowers the threshold to 'info' unless the user explicitly
-    # asked for a stricter --severity. Explicit --severity wins -- detect an
-    # explicit value via the parameter source so '--verbose --severity critical'
-    # honours 'critical' instead of being overridden back to 'info'.
-    ctx = click.get_current_context()
-    severity_is_explicit = ctx.get_parameter_source("severity") != ParameterSource.DEFAULT
-    effective_severity = severity if severity_is_explicit else ("info" if verbose else severity)
-    report = _filter_issues(report, effective_severity)
+    report = _filter_issues(report, severity)
 
-    text = _render(report, fmt, color=output is None)
+    text = _render(report, fmt, color=output is None, disable_plugins=disable_plugins)
     _emit(text, output, force=force)
 
     if not report.conversion_likely:
@@ -276,8 +326,13 @@ def _run_diff(
             combined = HTMLReporter().render_diff(report_before, report_after)
             _emit(combined, output, force=force)
         else:
-            before_text = _render(report_before, fmt, color=output is None)
-            after_text = _render(report_after, fmt, color=output is None)
+            # console and plugin reporters: render each side, join with a rule.
+            before_text = _render(
+                report_before, fmt, color=output is None, disable_plugins=disable_plugins
+            )
+            after_text = _render(
+                report_after, fmt, color=output is None, disable_plugins=disable_plugins
+            )
             sep = "\n" + ("=" * 80) + "\n"
             _emit(
                 f"BEFORE: {before}\n{before_text}\n{sep}AFTER: {after}\n{after_text}",
@@ -298,6 +353,7 @@ def _run_fix(
     force: bool,
     dry_run: bool,
     max_model_size: int,
+    disable_plugins: tuple[str, ...] = (),
 ) -> None:
     if not path.exists():
         raise click.ClickException(f"ONNX file not found: {path}")
@@ -317,7 +373,16 @@ def _run_fix(
         model = safe_load(path)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
-    new_model, applied = apply_all(model, default_fixers())
+    # Built-ins first, then discovered plugin fixers (isolated so a broken
+    # plugin can't take down the run), minus anything disabled by name.
+    _, plugin_fixers, _ = load_plugins()
+    disabled = set(disable_plugins)
+    fixers = [
+        f
+        for f in [*default_fixers(), *(_SafePluginFixer(pf) for pf in plugin_fixers)]
+        if getattr(f, "name", "") not in disabled
+    ]
+    new_model, applied = apply_all(model, fixers)
 
     if not applied:
         click.echo("no fixes applied -- model unchanged")
@@ -359,9 +424,6 @@ def _print_plugin_listing(target_trt: str, max_model_size: int, disable_plugins:
     for c in analyzer.checkers:
         click.echo(f"  - {getattr(c, 'name', c.__class__.__name__)}")
     click.echo("\nFixers:")
-    from trtcheck.fixers import default_fixers
-    from trtcheck.plugins import load_plugins
-
     built_in_fixers = list(default_fixers())
     _, discovered_fixers, discovered_reporters = load_plugins()
     disabled = set(disable_plugins)
