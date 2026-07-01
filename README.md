@@ -38,8 +38,10 @@ Estimated fix time: 15–30 minutes.
 
 Exit code `1`. Wire it into CI to fail the PR before someone wastes an
 afternoon on `trtexec`. See [`docs/case-studies/uint8-input.md`](docs/case-studies/uint8-input.md)
-for the full before/after walkthrough — including the auto-fix that
-rewrites this exact pattern into a passing graph.
+for the full before/after walkthrough, including the auto-fix that
+rewrites this exact pattern into a passing graph. Verdict accuracy is
+measured: [`SCORECARD.md`](SCORECARD.md) publishes precision and recall
+against a corpus with known conversion outcomes.
 
 <p align="center">
   <img src="assets/demo.svg" alt="trtcheck demo: the UINT8 case before and after --fix" width="100%">
@@ -102,6 +104,24 @@ Every check descends into `If` / `Loop` / `Scan` **subgraph bodies** — an
 unsupported op buried in a branch is caught, not waved through. Each finding
 includes a specific remediation. Not "this is bad" — what to change, where.
 
+## Measured accuracy
+
+The [`bench/`](bench/) harness scores trtcheck's verdicts against a
+corpus with known conversion outcomes. Latest run, v1.0.0 against the
+TRT 10.3 matrix at the CI gate configuration:
+
+| Corpus | Precision | Recall | Total wall time |
+|---|---|---|---|
+| 9 models: 3 from the ONNX Model Zoo, 6 bundled failure fixtures | 1.000 | 1.000 | 2.0 s |
+
+Nine models is a small corpus and the failure cases are synthetic, so
+read this as "the checks do what they claim on known patterns", not as a
+field-accuracy estimate. [`SCORECARD.md`](SCORECARD.md) has the
+per-model table, the methodology, and the false negative the first run
+caught (it became the `loop_runtime_trip_count` critical check). To
+grow the corpus, add a model with a known outcome to
+[`bench/manifest.yaml`](bench/manifest.yaml) and open a PR.
+
 ## What it auto-fixes
 
 Pass `--fix` to apply built-in safe rewrites in place. Use `--dry-run`
@@ -122,6 +142,22 @@ trtcheck model.onnx --fix --output fixed.onnx          # apply
 
 Refuses to overwrite the input or an existing output unless you pass
 `--force`.
+
+## How it compares
+
+| | trtcheck | [Polygraphy](https://github.com/NVIDIA/TensorRT/tree/main/tools/Polygraphy) | [Netron](https://github.com/lutzroeder/netron) |
+|---|---|---|---|
+| Needs TensorRT / GPU | no | yes, for conversion checks | no |
+| Time to a verdict | seconds | minutes (builds a real engine) | manual inspection |
+| Fix suggestions | per-finding remediation + `--fix` rewrites | no | no |
+| CI integration | exit code, JSON, GitHub Action | scriptable, needs a GPU runner | no |
+| Verdict strength | predicts the build outcome | proves it | n/a |
+
+Use them together. Polygraphy building an engine is the ground truth;
+if you have the GPU and the minutes, run it. Netron is for eyeballing
+a graph once you know which node to look at. trtcheck is the
+ten-second gate that runs before either: on a laptop, in CI, on every
+PR.
 
 ## Usage
 
@@ -269,12 +305,32 @@ Security disclosures: [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
-- Run the `bench/` validation harness end-to-end against the public
-  ONNX corpus and publish a `SCORECARD.md` with measured TPR / FPR.
-- Scheduled GitHub Action that runs `tools/check_matrix_drift.py` and
-  files a tracking issue when the upstream operator table drifts.
+- Grow the bench corpus past nine models with real-world failing
+  models (detection heads, transformer blocks) and publish a refreshed
+  [`SCORECARD.md`](SCORECARD.md) per release.
+- Run the `trtexec` leg of the harness on GPU hardware and reconcile
+  the manifest's expected outcomes against live TRT behavior.
+- Track new TensorRT releases in the operator matrix. The weekly
+  [matrix-drift Action](.github/workflows/matrix-drift.yml) already
+  files a tracking issue when the upstream operator table moves.
 
-See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
+Shipped: the validation scorecard and the scheduled matrix-drift
+Action. See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
+
+## Citation
+
+If trtcheck saves your project some GPU hours, a citation is welcome:
+
+```bibtex
+@misc{trtcheck,
+  title  = {trtcheck: a static pre-flight checker for ONNX to TensorRT conversion},
+  author = {Soham},
+  year   = {2026},
+  url    = {https://github.com/sohams25/trtcheck}
+}
+```
+
+Using it in CI? Open a PR adding your project to this section.
 
 ## License
 
