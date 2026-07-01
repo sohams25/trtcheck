@@ -11,14 +11,15 @@ pixels as `uint8` (the natural type for image bytes) and the cast to
 float happens inside the network's forward pass. PyTorch exports this
 faithfully. ONNX is happy. Everything looks fine on disk.
 
-Here is the resulting graph in full:
+Here is the resulting graph in full (the bundled fixture is a miniature
+of the same shape — a Relu standing in for the network body):
 
 ```
-input  : tensor(uint8)   shape=[1, 3, 224, 224]
-   └── Cast(to=FLOAT)  →  output
+input  : tensor(uint8)   shape=[1, 3, 32, 32]
+   └── Cast(to=FLOAT) ── Relu ──►  output
 ```
 
-One input, one Cast node, one output. Three bytes of disagreement with
+One input, a Cast, the network. Three bytes of disagreement with
 TensorRT.
 
 ## What `trtexec` does
@@ -48,7 +49,7 @@ $ trtcheck tests/fixtures/failing/uint8_input.onnx
 ╭─────────────────── trtcheck report ───────────────────╮
 │ CONVERSION WILL FAIL                                  │
 │ file: tests/fixtures/failing/uint8_input.onnx         │
-│ opset: 17  producer: trtcheck-fixtures  nodes: 1      │
+│ opset: 17  producer: trtcheck-fixtures  nodes: 2      │
 │ 1 critical  0 warning  0 info                         │
 ╰───────────────────────────────────────────────────────╯
                           Detected issues
@@ -73,8 +74,9 @@ how fast you can read.
 
 ## What `--fix` rewrites
 
-For this exact pattern — a single `Cast` from a UINT8 input — the
-diagnosis comes with a built-in safe rewrite:
+For this exact pattern — a leading `Cast` from a UINT8 input feeding
+the rest of the network — the diagnosis comes with a built-in safe
+rewrite:
 
 ```bash
 $ trtcheck tests/fixtures/failing/uint8_input.onnx \
@@ -90,8 +92,8 @@ What changed in the graph:
 | | Before | After |
 |---|---|---|
 | input dtype | UINT8 | FLOAT |
-| nodes | `Cast(uint8 → float)` | _(empty)_ |
-| output | result of Cast | the input directly |
+| nodes | `Cast(uint8 → float)` → `Relu` | `Relu` |
+| Relu reads | the Cast's output | the input directly |
 
 Re-running trtcheck against the rewritten file:
 
@@ -99,6 +101,7 @@ Re-running trtcheck against the rewritten file:
 ╭─────────────────── trtcheck report ───────────────────╮
 │ LIKELY TO CONVERT                                     │
 │ file: model_fixed.onnx                                │
+│ opset: 17  producer: trtcheck-fixtures  nodes: 1      │
 │ 0 critical  0 warning  0 info                         │
 ╰───────────────────────────────────────────────────────╯
 No issues detected.

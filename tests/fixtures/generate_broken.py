@@ -147,14 +147,22 @@ def create_fully_dynamic() -> onnx.ModelProto:
 
 
 def create_uint8_input() -> onnx.ModelProto:
-    """UINT8 image input that gets Cast to FLOAT inside the model."""
+    """UINT8 image input Cast to FLOAT, then consumed by the network.
+
+    The realistic export shape: preprocessing (`np.uint8` image -> float)
+    baked into the graph as a leading Cast, with real ops downstream. The
+    downstream Relu matters -- it keeps the Cast's output off the graph
+    outputs, which is the shape `uint8_input` can safely rewrite (the
+    fixer refuses the degenerate Cast-straight-to-output form).
+    """
     inp = helper.make_tensor_value_info("input", TensorProto.UINT8, [1, 3, 32, 32])
     out = helper.make_tensor_value_info("output", TensorProto.FLOAT, [1, 3, 32, 32])
 
-    cast = helper.make_node("Cast", ["input"], ["output"], name="cast_1", to=TensorProto.FLOAT)
+    cast = helper.make_node("Cast", ["input"], ["casted"], name="cast_1", to=TensorProto.FLOAT)
+    relu = helper.make_node("Relu", ["casted"], ["output"], name="relu_1")
 
     graph = helper.make_graph(
-        nodes=[cast],
+        nodes=[cast, relu],
         name="uint8_input_failure",
         inputs=[inp],
         outputs=[out],
