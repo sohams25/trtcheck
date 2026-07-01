@@ -12,6 +12,7 @@ hardware.
 |---|---|
 | `manifest.yaml` | List of ONNX models with `expected` outcomes (the ground truth). Some entries point at public URLs; some point at the bundled fixtures so the pipeline can be exercised offline. |
 | `fetch.py` | Downloads URL-source entries into `bench/cache/` (gitignored). Skips files that already exist. Verifies SHA-256 when listed. |
+| `predict.py` | Runs trtcheck on every manifest entry (`--format json --severity critical`, the CI gate configuration) and writes `bench/outcomes.json`. |
 | `score.py` | Pure scoring function plus a CLI. Takes the manifest and an outcomes JSON, prints a confusion matrix with precision / recall / F1. |
 | `cache/` | Gitignored download cache. Created on first fetch. |
 
@@ -19,56 +20,30 @@ The manifest schema is enforced by `tools/validate_bench_manifest.py`,
 covered by `tests/test_bench_manifest.py`. The scoring logic is covered by
 `tests/test_bench_score.py`.
 
-## End-to-end flow (GPU required)
+## End-to-end flow
 
 ```bash
 # 1. fetch the public models. bundled-fixture rows are skipped automatically.
 python bench/fetch.py
 
-# 2. run trtcheck against every model in the manifest and capture predictions.
-#    Produce an outcomes file matching this shape:
+# 2. run trtcheck against every model in the manifest. Writes
+#    bench/outcomes.json:
 #
 #      {
 #        "predictions": {
 #          "<manifest entry name>": {
 #            "trtcheck": "convert" | "fail",
-#            "trtexec":  "convert" | "fail"   # optional, see below
+#            "trtexec":  "convert" | "fail"   # optional, see step 3
 #          },
 #          ...
 #        }
 #      }
-#
-#    A simple wrapper:
+python bench/predict.py
 
-python - <<'PY'
-import json, subprocess, yaml
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent.parent
-with open(ROOT / "bench" / "manifest.yaml") as f:
-    entries = yaml.safe_load(f)["models"]
-
-predictions = {}
-for e in entries:
-    if e["source"].startswith(("http://", "https://")):
-        model = ROOT / "bench" / "cache" / f"{e['name']}.onnx"
-    else:
-        model = ROOT / e["source"]
-    out = subprocess.run(
-        ["trtcheck", str(model), "--format", "json", "--severity", "critical"],
-        capture_output=True, text=True,
-    )
-    data = json.loads(out.stdout)
-    predictions[e["name"]] = {
-        "trtcheck": "convert" if data["conversion_likely"] else "fail",
-    }
-print(json.dumps({"predictions": predictions}, indent=2))
-PY
-# Pipe the JSON above into bench/outcomes.json.
-
-# 3. run trtexec against the same models on a GPU host. For each, record
-#    whether the engine build succeeded (`convert`) or failed (`fail`).
-#    Merge those into the outcomes file under the same model keys:
+# 3. (optional, GPU required) run trtexec against the same models on a GPU
+#    host. For each, record whether the engine build succeeded (`convert`)
+#    or failed (`fail`). Merge those into the outcomes file under the same
+#    model keys:
 #      predictions.<name>.trtexec = "convert" | "fail"
 #
 #    The CLI form looks like:
@@ -78,6 +53,10 @@ PY
 # 4. score the predictions against the manifest.
 python bench/score.py --outcomes bench/outcomes.json
 ```
+
+The latest published run lives in [`SCORECARD.md`](../SCORECARD.md) at
+the repo root, with the raw predictions committed as
+`bench/outcomes.json`.
 
 ## What the score means
 
