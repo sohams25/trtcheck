@@ -95,19 +95,75 @@ def _nested_loop_model() -> onnx.ModelProto:
     return model
 
 
+def _computed_trip_loop_model() -> onnx.ModelProto:
+    # Loop whose trip count comes from a Constant node's output: not an
+    # initializer, not a graph input -- an internally computed value.
+    body_iter = helper.make_tensor_value_info("body_iter", TensorProto.INT64, [])
+    body_cond_in = helper.make_tensor_value_info("body_cond", TensorProto.BOOL, [])
+    body_state_in = helper.make_tensor_value_info("body_state_in", TensorProto.FLOAT, [1])
+    body_cond_out = helper.make_tensor_value_info("body_cond_out", TensorProto.BOOL, [])
+    body_state_out = helper.make_tensor_value_info("body_state_out", TensorProto.FLOAT, [1])
+    body = helper.make_graph(
+        [
+            helper.make_node("Identity", ["body_state_in"], ["body_state_out"], name="b_id"),
+            helper.make_node("Identity", ["body_cond"], ["body_cond_out"], name="b_cid"),
+        ],
+        "computed_trip_body",
+        [body_iter, body_cond_in, body_state_in],
+        [body_cond_out, body_state_out],
+    )
+
+    trip_const = helper.make_node(
+        "Constant",
+        [],
+        ["trip_from_const"],
+        name="trip_const",
+        value=numpy_helper.from_array(np.array(4, dtype=np.int64)),
+    )
+    cond = helper.make_tensor_value_info("cond", TensorProto.BOOL, [])
+    state_in = helper.make_tensor_value_info("state_in", TensorProto.FLOAT, [1])
+    state_out = helper.make_tensor_value_info("state_out", TensorProto.FLOAT, [1])
+    loop = helper.make_node(
+        "Loop",
+        ["trip_from_const", "cond", "state_in"],
+        ["state_out"],
+        name="computed_trip_loop",
+        body=body,
+    )
+    graph = helper.make_graph(
+        [trip_const, loop],
+        "computed_trip_model",
+        [cond, state_in],
+        [state_out],
+    )
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+    model.ir_version = 8
+    return model
+
+
 class TestControlFlowChecker:
     def test_clean_model_no_issues(self, clean_model: onnx.ModelProto) -> None:
         assert ControlFlowChecker().check(clean_model) == []
 
-    def test_loop_with_dynamic_trip_emits_warning(
+    def test_loop_with_runtime_trip_count_is_critical(
         self, control_flow_loop_model: onnx.ModelProto
     ) -> None:
+        # Trip count fed from a graph input is provably runtime-dynamic; TRT
+        # rejects it at engine build, so this must fail the verdict.
         issues = ControlFlowChecker().check(control_flow_loop_model)
         assert any(
-            i.severity is Severity.WARNING and i.operator == "Loop" for i in issues
-        ), "Loop with runtime trip count should warn"
+            i.severity is Severity.CRITICAL and i.operator == "Loop" for i in issues
+        ), "Loop with a graph-input trip count should be critical"
         for i in issues:
             assert i.category is CheckCategory.CONTROL_FLOW
+
+    def test_loop_with_computed_trip_count_warns(self) -> None:
+        # Trip count produced by an internal node may still be shape-inferable
+        # by TRT, so it stays a warning -- escalating it would cry wolf.
+        issues = ControlFlowChecker().check(_computed_trip_loop_model())
+        loop_issues = [i for i in issues if i.operator == "Loop"]
+        assert loop_issues, "computed trip count should still be flagged"
+        assert all(i.severity is Severity.WARNING for i in loop_issues)
 
     def test_nested_loop_is_critical(self) -> None:
         issues = ControlFlowChecker().check(_nested_loop_model())
