@@ -52,6 +52,6 @@ trtcheck model.onnx --fix --output fixed.onnx
 ## CI integration
 
 A composite GitHub Action ships in this repo. See
-[the README](https://github.com/sohams25/trtcheck#using-trtcheck-as-a-github-action)
+[the README](https://github.com/sohams25/trtcheck#use-it-as-a-github-action)
 for the dual-workflow setup that posts a sticky PR comment when ONNX
 files change.
