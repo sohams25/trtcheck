@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="trtcheck — catch ONNX to TensorRT failures before TensorRT does" width="100%">
+  <img src="assets/banner.svg" alt="trtcheck: static pre-flight checks for ONNX to TensorRT conversion" width="100%">
 </p>
 
 <p align="center">
