@@ -10,40 +10,13 @@
   <a href="LICENSE">                                                                         <img alt="license" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
-> **`trtcheck`** — a static pre-flight checker for ONNX → TensorRT conversion.
-> Five checkers, five auto-fixers, three report formats. Runs in seconds on
-> any laptop. No TensorRT, no CUDA, no GPU.
-
----
-
-## The 10-second pitch
-
-The PyTorch → ONNX → TensorRT pipeline fails most of the time on the
-last hop. The errors are cryptic, the iteration loop is slow, and the
-fix is usually obvious in hindsight.
-
-```bash
-$ trtcheck model.onnx
-```
-
-```
-CONVERSION WILL FAIL — 1 critical, 0 warning
-CRITICAL  input  Input  Input 'input' has dtype UINT8; TensorRT
-                        accepts only FP32, FP16, INT32, or INT8
-                        as graph inputs.
-                        → Move the UINT8 → FLOAT32 conversion (and
-                          normalization) into your preprocessing
-                          pipeline rather than the model body.
-
-Estimated fix time: 15–30 minutes.
-```
-
-Exit code `1`. Wire it into CI to fail the PR before someone wastes an
-afternoon on `trtexec`. See [`docs/case-studies/uint8-input.md`](docs/case-studies/uint8-input.md)
-for the full before/after walkthrough, including the auto-fix that
-rewrites this exact pattern into a passing graph. Verdict accuracy is
-measured: [`SCORECARD.md`](SCORECARD.md) publishes precision and recall
-against a corpus with known conversion outcomes.
+trtcheck is a static analysis tool for the ONNX → TensorRT conversion
+step. It reads an ONNX file, runs five independent checkers against a
+per-version TensorRT operator matrix, and reports whether the model
+will convert — with a specific remediation for each blocker it finds.
+Five built-in fixers rewrite the common failure patterns. Analysis
+runs in seconds and needs no TensorRT install, CUDA, or GPU, so it
+works on a laptop and in CI.
 
 <p align="center">
   <img src="assets/demo.svg" alt="trtcheck demo: the UINT8 case before and after --fix" width="100%">
@@ -65,16 +38,37 @@ pip install -e ".[dev]"
 
 Python 3.10+. No platform dependencies beyond `onnx` itself.
 
-## Why the existing loop hurts
+## Quick start
 
-```
-PyTorch ─► ONNX ─► trtexec ─► .engine
-                       ▲
-                       └── fails 80% of the time, on real workloads
+```bash
+$ trtcheck model.onnx
 ```
 
-A representative slice of what `trtexec` actually says, and what it
-actually means:
+```
+CONVERSION WILL FAIL — 1 critical, 0 warning
+CRITICAL  input  Input  Input 'input' has dtype UINT8; TensorRT
+                        accepts only FP32, FP16, INT32, or INT8
+                        as graph inputs.
+                        → Move the UINT8 → FLOAT32 conversion (and
+                          normalization) into your preprocessing
+                          pipeline rather than the model body.
+
+Estimated fix time: 15–30 minutes.
+```
+
+The exit code is `1` when conversion is expected to fail and `0`
+otherwise, so the same command works unchanged as a CI gate.
+[`docs/case-studies/uint8-input.md`](docs/case-studies/uint8-input.md)
+walks this exact case end to end, including the `--fix` rewrite that
+turns it into a passing graph. Verdict accuracy is measured:
+[`SCORECARD.md`](SCORECARD.md) publishes precision and recall against
+a corpus with known conversion outcomes.
+
+## Motivation
+
+`trtexec` reports conversion problems at engine build time, one at a
+time, as C++ log output. Some common failures and what they trace back
+to:
 
 | `trtexec` error | Actually means | Root cause |
 |---|---|---|
@@ -84,13 +78,9 @@ actually means:
 | `INT64 weights detected … not natively supported` | A `Constant` or `Initializer` is `int64` | `torch.LongTensor` for argmax / indices |
 | `Network must have at least one output` | Shape inference removed every output | `If` / `Loop` with dynamic shape |
 
-The developer workflow today: run `trtexec`, wait 2–5 minutes, parse a
-C++ traceback, guess, repeat. Average resolution time: **2–6 hours per
-failure**.
-
-The trtcheck workflow: run `trtcheck`, read a 10-second structured
-report with a specific remediation per issue, fix once, then run
-`trtexec` and have it pass.
+trtcheck runs the equivalent compatibility checks statically, so every
+issue in the model surfaces in one pass, as a named finding with a
+fix, before an engine build is attempted.
 
 ## What it checks
 
@@ -105,24 +95,6 @@ report with a specific remediation per issue, fix once, then run
 Every check descends into `If` / `Loop` / `Scan` **subgraph bodies** — an
 unsupported op buried in a branch is caught, not waved through. Each finding
 includes a specific remediation. Not "this is bad" — what to change, where.
-
-## Measured accuracy
-
-The [`bench/`](bench/) harness scores trtcheck's verdicts against a
-corpus with known conversion outcomes. Latest run, v1.0.0 against the
-TRT 10.3 matrix at the CI gate configuration:
-
-| Corpus | Precision | Recall | Total wall time |
-|---|---|---|---|
-| 9 models: 3 from the ONNX Model Zoo, 6 bundled fixtures | 1.000 | 1.000 | 2.0 s |
-
-Nine models is a small corpus and the failure cases are synthetic, so
-read this as "the checks do what they claim on known patterns", not as a
-field-accuracy estimate. [`SCORECARD.md`](SCORECARD.md) has the
-per-model table, the methodology, and the false negative the first run
-caught (it became the `loop_runtime_trip_count` critical check). To
-grow the corpus, add a model with a known outcome to
-[`bench/manifest.yaml`](bench/manifest.yaml) and open a PR.
 
 ## What it auto-fixes
 
@@ -144,6 +116,24 @@ trtcheck model.onnx --fix --output fixed.onnx          # apply
 
 Refuses to overwrite the input or an existing output unless you pass
 `--force`.
+
+## Measured accuracy
+
+The [`bench/`](bench/) harness scores trtcheck's verdicts against a
+corpus with known conversion outcomes. Latest run, v1.0.0 against the
+TRT 10.3 matrix at the CI gate configuration:
+
+| Corpus | Precision | Recall | Total wall time |
+|---|---|---|---|
+| 9 models: 3 from the ONNX Model Zoo, 6 bundled fixtures | 1.000 | 1.000 | 2.0 s |
+
+Nine models is a small corpus and the failure cases are synthetic, so
+read this as "the checks do what they claim on known patterns", not as a
+field-accuracy estimate. [`SCORECARD.md`](SCORECARD.md) has the
+per-model table, the methodology, and the false negative the first run
+caught (it became the `loop_runtime_trip_count` critical check). To
+grow the corpus, add a model with a known outcome to
+[`bench/manifest.yaml`](bench/manifest.yaml) and open a PR.
 
 ## How it compares
 
