@@ -49,7 +49,7 @@
           font-size="13" fill="#6f7a90">trtcheck — demo</text>
 
     <!-- ===== PROMPT 1 ===== -->
-    <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="14">
+    <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16">
       <text x="22" y="74" fill="#5d6781">$</text>
       <!-- typewriter: the visible text is clipped to a width that animates -->
       <g clip-path="url(#clip-cmd-1)" transform="translate(38, 56)">
@@ -66,11 +66,11 @@
             fill="#1a1014" stroke="#ff5c5c" stroke-width="1"/>
       <rect x="14" y="14" width="200" height="22" rx="4"
             fill="#3a1419" stroke="#ff5c5c" stroke-width="1"/>
-      <text x="26" y="29" font-family="ui-monospace, monospace" font-size="13"
+      <text x="26" y="29" font-family="ui-monospace, monospace" font-size="14"
             fill="#ff8a8a" font-weight="600">CONVERSION WILL FAIL</text>
-      <text x="14" y="58" font-family="ui-monospace, monospace" font-size="12"
+      <text x="14" y="58" font-family="ui-monospace, monospace" font-size="14"
             fill="#cdd4e2">file: model.onnx</text>
-      <text x="14" y="75" font-family="ui-monospace, monospace" font-size="11"
+      <text x="14" y="76" font-family="ui-monospace, monospace" font-size="13"
             fill="#8a93a3">opset: 17 · nodes: 2 · 1 critical, 0 warning</text>
     </g>
 
@@ -80,29 +80,29 @@
                keyTimes="0;0.18;0.26;0.32;0.52;0.58;0.70;0.85;0.95;1"
                dur="10s" repeatCount="indefinite"/>
       <!-- header cells share the exact column x of the row cells below -->
-      <g font-family="ui-monospace, monospace" font-size="11" fill="#6f7a90">
+      <g font-family="ui-monospace, monospace" font-size="13" fill="#6f7a90">
         <text x="0" y="0">Severity</text>
-        <text x="86" y="0">Node</text>
-        <text x="158" y="0">Operator</text>
-        <text x="248" y="0">Issue</text>
-        <text x="640" y="0">Fix</text>
+        <text x="96" y="0">Node</text>
+        <text x="168" y="0">Operator</text>
+        <text x="264" y="0">Issue</text>
+        <text x="590" y="0">Fix</text>
       </g>
       <line x1="0" y1="8" x2="1076" y2="8" stroke="#2a3245" stroke-width="1"/>
-      <g font-family="ui-monospace, monospace" font-size="12">
-        <text x="0" y="32"  fill="#ff5c5c" font-weight="600">CRITICAL</text>
-        <text x="86" y="32" fill="#cdd4e2">input</text>
-        <text x="158" y="32" fill="#cdd4e2">Input</text>
-        <text x="248" y="32" fill="#cdd4e2">Input 'input' has dtype UINT8;</text>
-        <text x="248" y="50" fill="#cdd4e2">TensorRT accepts only FP32, FP16,</text>
-        <text x="248" y="68" fill="#cdd4e2">INT32, or INT8 as graph inputs.</text>
-        <text x="640" y="32" fill="#4ec9b0">Move the UINT8 → FLOAT32 conversion (and</text>
-        <text x="640" y="50" fill="#4ec9b0">normalization) into your preprocessing</text>
-        <text x="640" y="68" fill="#4ec9b0">pipeline rather than the model body.</text>
+      <g font-family="ui-monospace, monospace" font-size="14">
+        <text x="0" y="34"  fill="#ff5c5c" font-weight="600">CRITICAL</text>
+        <text x="96" y="34" fill="#cdd4e2">input</text>
+        <text x="168" y="34" fill="#cdd4e2">Input</text>
+        <text x="264" y="34" fill="#cdd4e2">Input 'input' has dtype UINT8;</text>
+        <text x="264" y="54" fill="#cdd4e2">TensorRT accepts only FP32, FP16,</text>
+        <text x="264" y="74" fill="#cdd4e2">INT32, or INT8 as graph inputs.</text>
+        <text x="590" y="34" fill="#4ec9b0">Move the UINT8 → FLOAT32 conversion (and</text>
+        <text x="590" y="54" fill="#4ec9b0">normalization) into your preprocessing</text>
+        <text x="590" y="74" fill="#4ec9b0">pipeline rather than the model body.</text>
       </g>
     </g>
 
     <!-- ===== PROMPT 2 (visible 5.0s-) ===== -->
-    <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="14">
+    <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16">
       <text x="22" y="290" fill="#5d6781" opacity="0">
         $
         <animate attributeName="opacity" values="0;0;0;0;0;0;1;1;1;1"
@@ -119,22 +119,22 @@
       <animate attributeName="opacity" values="0;0;0;0;0;0;0;1;1;1"
                keyTimes="0;0.20;0.40;0.50;0.60;0.65;0.68;0.70;0.95;1"
                dur="10s" repeatCount="indefinite"/>
-      <g font-family="ui-monospace, monospace" font-size="13">
+      <g font-family="ui-monospace, monospace" font-size="15">
         <text x="16" y="16" fill="#cdd4e2"><tspan fill="#4ec9b0">[uint8_input]</tspan> promote input 'input' from UINT8 to FLOAT and drop the redundant Cast node 'cast_1'</text>
-        <text x="0" y="40" fill="#cdd4e2">1 fix(es) applied. Wrote <tspan fill="#76b3ff">fixed.onnx</tspan>.</text>
+        <text x="0" y="42" fill="#cdd4e2">1 fix(es) applied. Wrote <tspan fill="#76b3ff">fixed.onnx</tspan>.</text>
       </g>
     </g>
 
     <!-- ===== VERDICT PANEL: PASS (visible 7.8s-) ===== -->
-    <g transform="translate(22, 358)" opacity="0">
+    <g transform="translate(22, 368)" opacity="0">
       <animate attributeName="opacity" values="0;0;0;0;0;0;0;0;1;1"
                keyTimes="0;0.20;0.40;0.50;0.60;0.65;0.68;0.74;0.78;1"
                dur="10s" repeatCount="indefinite"/>
       <rect x="0" y="0" width="200" height="26" rx="4"
             fill="#0e1f1a" stroke="#4ec9b0" stroke-width="1"/>
-      <text x="12" y="18" font-family="ui-monospace, monospace" font-size="13"
+      <text x="12" y="18" font-family="ui-monospace, monospace" font-size="14"
             fill="#4ec9b0" font-weight="600">LIKELY TO CONVERT</text>
-      <text x="216" y="18" font-family="ui-monospace, monospace" font-size="12"
+      <text x="220" y="18" font-family="ui-monospace, monospace" font-size="14"
             fill="#8a93a3">0 critical · 0 warning · 0 info</text>
     </g>
   </g>
