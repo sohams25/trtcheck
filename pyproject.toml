@@ -47,9 +47,6 @@ dev = [
     # of target version. Dev-only; runtime numpy stays unpinned via onnx.
     "numpy<2.5",
 ]
-# The docs site: README and CONTRIBUTING point contributors at
-# `mkdocs serve`; docs.yml builds with the same package.
-docs = ["mkdocs-material>=9"]
 
 [project.scripts]
 trtcheck = "trtcheck.cli:main"

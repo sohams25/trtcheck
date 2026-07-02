@@ -5,7 +5,6 @@
 <p align="center">
   <a href="https://github.com/sohams25/trtcheck/actions/workflows/ci.yml"><img alt="ci"     src="https://github.com/sohams25/trtcheck/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://pypi.org/project/trtcheck/">                                              <img alt="pypi"   src="https://img.shields.io/pypi/v/trtcheck.svg"></a>
-  <a href="https://sohams25.github.io/trtcheck/">                                            <img alt="docs"   src="https://img.shields.io/badge/docs-mkdocs--material-blue"></a>
   <a href="https://www.python.org/">                                                         <img alt="python" src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue"></a>
   <a href="LICENSE">                                                                         <img alt="license" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
@@ -284,12 +283,11 @@ Run the drift check before each release to keep the matrix honest.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,docs]"
+pip install -e ".[dev]"
 
 ./scripts/run-tests.sh        # full pytest suite
 mypy trtcheck/                # strict type check
 black . && isort .            # format
-mkdocs serve                  # local docs site
 ```
 
 TDD is mandatory for new checkers, fixers, and reporters. The full
