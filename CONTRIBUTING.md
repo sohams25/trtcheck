@@ -15,7 +15,7 @@ tweaks, operator-matrix updates — all land in this repo via PR.
 git clone https://github.com/sohams25/trtcheck.git
 cd trtcheck
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,docs]"
+pip install -e ".[dev]"
 ```
 
 Python 3.10+ is required. CI runs against 3.10 / 3.11 / 3.12 / 3.13.

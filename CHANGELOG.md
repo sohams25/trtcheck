@@ -36,6 +36,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   the JSON report: spec-era scaffolding that nothing ever populated,
   removed before anyone can depend on two always-empty keys. (If you
   parsed them, they were always `[]` / `{}`.)
+- The GitHub Pages site, its deploy workflow (`docs.yml`), and
+  `mkdocs.yml`. No project website; the docs stay in the repo as plain
+  markdown under `docs/`, which GitHub renders directly.
 
 ### Added
 - `SCORECARD.md`: first published run of the `bench/` validation harness.
@@ -71,11 +74,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   mismatch `tools/check_matrix_drift.py` reported). The
   static-sequence-length caveat stays as the operator note and the
   control-flow warning.
-- New `docs` extra (`pip install -e ".[dev,docs]"`) so the
-  `mkdocs serve` step in README/CONTRIBUTING works without an ad-hoc
-  install; README Action-inputs table now lists `base-ref` and
-  `source-path`; assorted doc drift fixed (CI matrix in CONTRIBUTING,
-  Python badge, flag tables, stale fixture paths).
+- README Action-inputs table now lists `base-ref` and `source-path`;
+  assorted doc drift fixed (CI matrix in CONTRIBUTING, Python badge,
+  flag tables, stale fixture paths).
 - `bench/manifest.yaml`: replaced the dead `yolov8n_static` URL (asset no
   longer published) with `squeezenet1_1` from the ONNX Model Zoo, and pinned
   SHA-256 hashes for all three URL-sourced models.
