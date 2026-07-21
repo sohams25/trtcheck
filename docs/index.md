@@ -21,6 +21,8 @@ invoking `trtexec`.
 - [Install](install.md) -- `pip install trtcheck`
 - [Usage](usage.md) -- CLI flags, examples, CI integration
 - [Fixers](fixers.md) -- what `--fix` rewrites and when it refuses
+- [Rule registry](rules.md) -- stable finding ids for CI filtering
+- [Design: verdicts & fix safety](design/analysis-verdicts-and-fix-safety.md) -- invariants and trust model
 - [Operators](operators/index.md) -- per-operator TensorRT support matrix
 
 ## What it checks

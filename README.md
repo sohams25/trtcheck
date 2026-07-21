@@ -44,7 +44,7 @@ $ trtcheck model.onnx
 ```
 
 ```
-CONVERSION WILL FAIL — 1 critical, 0 warning
+CONVERSION BLOCKED — 1 critical, 0 warning
 CRITICAL  input  Input  Input 'input' has dtype UINT8; TensorRT
                         accepts only FP32, FP16, INT32, or INT8
                         as graph inputs.
@@ -55,8 +55,14 @@ CRITICAL  input  Input  Input 'input' has dtype UINT8; TensorRT
 Estimated fix time: 15–30 minutes.
 ```
 
-The exit code is `1` when conversion is expected to fail and `0`
-otherwise, so the same command works unchanged as a CI gate.
+Every report carries one of four verdicts — **blocked** (a known critical
+incompatibility), **unverified** (no known blocker, but unresolved
+conditions: unclassified or custom-domain operators, conditional support
+that static analysis cannot settle), **likely** (all static checks passed
+— a prediction, not a guarantee), and **verified** (an optional real
+`trtexec` build succeeded via `--verify-runtime`). The exit code is `1`
+on `blocked` and `0` otherwise (`--fail-on unverified` tightens the CI
+gate), so the same command works unchanged as a CI gate.
 [`docs/case-studies/uint8-input.md`](docs/case-studies/uint8-input.md)
 walks this exact case end to end, including the `--fix` rewrite that
 turns it into a passing graph. Verdict accuracy is measured:
@@ -85,7 +91,7 @@ fix, before an engine build is attempted.
 
 | Checker | Catches |
 |---|---|
-| **operator support** | Ops missing or partial in the target TRT version (e.g. `SequenceEmpty`, `GroupNormalization` on TRT 8.x) |
+| **operator support** | Ops missing or partial in the target TRT version (e.g. `SequenceEmpty`, `GroupNormalization` on TRT 8.x); documented conditional-support rules (e.g. TopK `sorted=0`, cubic `Resize`); honest `unverified` findings for operators the matrix does not classify and for custom-domain ops that need a TRT plugin |
 | **precision** | `UINT8` / `INT64` / `FLOAT64` / `STRING` / `BFLOAT16` graph inputs, `INT64` weights, and `FLOAT64` introduced by a `Cast` or `Constant` anywhere in the graph |
 | **dynamic shapes** | Two or more symbolic input dims, including dynamic dims encoded as a concrete `-1` |
 | **control flow** | `Loop` with runtime trip count, nested `Loop`, `If`, `Scan` |
@@ -97,15 +103,19 @@ includes a specific remediation. Not "this is bad" — what to change, where.
 
 ## What it auto-fixes
 
-Pass `--fix` to apply built-in safe rewrites in place. Use `--dry-run`
-to preview them first.
+`--fix` runs an audited, **transactional** pipeline: every fixer works on
+an isolated candidate copy, the result must pass full ONNX validation
+(strict type/shape inference) before it is kept, and the report shows
+which findings were resolved, which remain, and whether any were
+introduced. A fixer that crashes — including a third-party plugin — cannot
+leave a half-rewritten model. Use `--dry-run` to preview.
 
 | Fixer | Rewrites |
 |---|---|
 | **`uint8_input`** | Promotes a `UINT8` graph input to `FLOAT` and drops the redundant downstream `Cast` |
-| **`int64_to_int32`** | Casts `INT64` initializers to `INT32` when every value is in range |
+| **`int64_to_int32`** | Casts `INT64` initializers to `INT32` only when every use is at a schema position that accepts INT32 (e.g. `Gather` indices) — never `Reshape`/`Slice` shape inputs, which require INT64 |
 | **`float64_to_float32`** | Casts `FLOAT64` initializers to `FLOAT32` when no value is NaN, infinite, or out of FP32 range |
-| **`drop_dropout`** | Removes `Dropout` nodes and rewires consumers (skips nodes whose `mask` output is used) |
+| **`drop_dropout`** | Removes `Dropout` nodes that are provably in inference mode (`training_mode` absent or statically false; mask unused) |
 | **`upsample_to_resize`** | Rewrites leftover deprecated `Upsample` nodes as `Resize` on opset-13+ graphs (nearest / linear) |
 
 ```bash
@@ -119,20 +129,24 @@ Refuses to overwrite the input or an existing output unless you pass
 ## Measured accuracy
 
 The [`bench/`](bench/) harness scores trtcheck's verdicts against a
-corpus with known conversion outcomes. Latest run, v1.0.0 against the
-TRT 10.3 matrix at the CI gate configuration:
+corpus with known conversion outcomes. Latest run against the TRT 10.3
+matrix:
 
-| Corpus | Precision | Recall | Total wall time |
-|---|---|---|---|
-| 9 models: 3 from the ONNX Model Zoo, 6 bundled fixtures | 1.000 | 1.000 | 2.0 s |
+| Corpus | Blocker precision | Blocker recall | Unverified coverage | Total wall time |
+|---|---|---|---|---|
+| 12 models: 3 from the ONNX Model Zoo, 9 bundled fixtures | 1.000 | 1.000 | 0.250 | 2.3 s |
 
-Nine models is a small corpus and the failure cases are synthetic, so
-read this as "the checks do what they claim on known patterns", not as a
-field-accuracy estimate. [`SCORECARD.md`](SCORECARD.md) has the
-per-model table, the methodology, and the false negative the first run
-caught (it became the `loop_runtime_trip_count` critical check). To
-grow the corpus, add a model with a known outcome to
-[`bench/manifest.yaml`](bench/manifest.yaml) and open a PR.
+`unverified` predictions are never counted as successes — they are
+reported separately, split by ground truth. Twelve models is a small
+corpus and the failure cases are synthetic, so read this as "the checks
+do what they claim on known patterns", not as a field-accuracy estimate.
+Ground truth is documented TRT behavior, not a live `trtexec` run.
+[`SCORECARD.md`](SCORECARD.md) has the per-model table, the methodology,
+and what each run caught (the first run's false negative became the
+`loop_runtime_trip_count` critical check; this run exposed a `Clip`
+coverage gap in the matrix). To grow the corpus, add a model with a
+known outcome to [`bench/manifest.yaml`](bench/manifest.yaml) and open a
+PR.
 
 ## How it compares
 
@@ -142,7 +156,7 @@ grow the corpus, add a model with a known outcome to
 | Time to a verdict | seconds | minutes (builds a real engine) | manual inspection |
 | Fix suggestions | per-finding remediation + `--fix` rewrites | no | no |
 | CI integration | exit code, JSON, GitHub Action | scriptable, needs a GPU runner | no |
-| Verdict strength | predicts the build outcome | proves it | n/a |
+| Verdict strength | predicts the build outcome (and says so: four-state verdict with explicit uncertainty; optional `--verify-runtime` runs trtexec when available) | proves it | n/a |
 
 Use them together. Polygraphy building an engine is the ground truth;
 if you have the GPU and the minutes, run it. Netron is for eyeballing
@@ -171,11 +185,21 @@ trtcheck model.onnx --severity critical
 # compare two versions of a model (before / after a fix)
 trtcheck before.onnx after.onnx --diff
 
-# auto-fix simple issues
+# auto-fix simple issues (transactional; reports resolved/remaining findings)
 trtcheck model.onnx --fix --output model_fixed.onnx
+
+# strict CI gate: also fail on unresolved conditions
+trtcheck model.onnx --fail-on unverified
+
+# optional: verify with a real TensorRT build (needs trtexec)
+trtcheck model.onnx --verify-runtime
 ```
 
-Exit code is `1` if conversion is unlikely to succeed, `0` otherwise.
+Exit code is `1` on a `blocked` verdict, `0` otherwise; `--fail-on
+unverified` also fails on unresolved conditions. Findings carry stable
+rule ids (`TRT-OP-UNSUPPORTED`, `TRT-DTYPE-UINT8-INPUT`, ...) for CI
+filtering — see [`docs/rules.md`](docs/rules.md) and
+[`docs/usage.md`](docs/usage.md).
 
 Full CLI reference: `trtcheck --help`.
 

@@ -70,6 +70,13 @@ OPERATORS: dict[str, dict[str, Any]] = {
         "notes": "Added in TRT 8.6 as a plugin, native in 10.0+.",
     },
     "Softmax": {"support": expand("S", "S", "S", "S")},
+    "Clip": {
+        "support": expand("U", "U", "S", "S"),
+        "notes": (
+            "Supported in TRT 10.x (FP32/FP16/BF16) per onnx-tensorrt docs, "
+            "retrieved 2026-07-22. 8.x status not verified here, left unknown."
+        ),
+    },
     "LogSoftmax": {"support": expand("S", "S", "S", "S")},
     # Normalization
     "BatchNormalization": {"support": expand("S", "S", "S", "S")},

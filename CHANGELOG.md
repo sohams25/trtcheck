@@ -5,6 +5,95 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
 ## [Unreleased]
 
+### Added
+- **Four-state verdict model.** `AnalysisReport.verdict` is now one of
+  `blocked` / `unverified` / `likely` / `verified` (`trtcheck.Verdict`).
+  `unverified` is new: no known blocker, but unresolved conditions remain.
+  The boolean `conversion_likely` survives as a deprecated compatibility
+  property (`verdict != blocked`). Exit codes unchanged by default
+  (`1` on blocked); new `--fail-on unverified` tightens the gate.
+- **Stable rule ids + report schema 2.0.** Every finding carries
+  `rule_id` (e.g. `TRT-OP-UNSUPPORTED`, `TRT-DTYPE-UINT8-INPUT`),
+  `confidence` (high/medium/low), `verify_required`, `target_trt`, and
+  `graph_scope`. The registry is documented in `docs/rules.md` and pinned
+  by a stability test. All 1.x JSON keys are preserved.
+- **Honest uncertainty for unknown operators.** Default-domain ops absent
+  from the support matrix now emit `TRT-OP-UNCLASSIFIED` (info,
+  aggregated per op type) instead of silently passing; custom-domain ops
+  emit `TRT-OP-CUSTOM-DOMAIN` unless the domain is declared plugin-backed
+  via `--plugin-domain` / `AnalyzerConfig.plugin_domains`.
+- **Conditional operator support (matrix schema 2.0).** Matrix entries may
+  carry evidence-backed `conditions` (`attribute_allowed`,
+  `constant_input_max`, scoped by `applies_to` TRT versions). Violations
+  emit `TRT-OP-CONDITION`; statically unresolvable conditions emit
+  `TRT-OP-CONDITION-UNRESOLVED` (unverified). First converted operators,
+  sourced from the upstream onnx-tensorrt table (retrieved 2026-07-22):
+  TopK (`sorted=1` required, `K < 3840`) and Resize (nearest/linear only,
+  restricted `coordinate_transformation_mode`, no antialias). `Clip`
+  added to the matrix (TRT 10.x supported per the same source; 8.x left
+  unknown).
+- **Optional runtime verification.** `--verify-runtime` runs
+  `trtexec --onnx=MODEL` (list-args, timeout, captured output; no shell)
+  and records status/version/command metadata in the report. Only a
+  successful build upgrades the verdict to `verified`; a missing trtexec,
+  timeout, or failure leaves the static verdict untouched. Statuses:
+  success / parser_failure / build_failure / missing_trtexec / timeout.
+- **Audited `--fix` pipeline.** `--fix` now analyzes with the selected
+  `--target-trt`, applies fixers, re-analyzes with the same target, and
+  reports findings resolved / remaining / introduced (keyed by rule id +
+  node identity). `--format json` emits a machine-readable fix summary.
+  Structurally invalid input models are refused.
+- Bench harness three-way vocabulary: predictions may be `unverified`,
+  which is excluded from the blocker confusion matrix and reported as
+  coverage (never counted as success). New corpus fixtures:
+  `topk_unsorted`, `custom_domain`, `reshape_int64_shape`.
+- `docs/rules.md` (rule registry) and
+  `docs/design/analysis-verdicts-and-fix-safety.md` (invariants, trust
+  model, transactional fixing).
+
+### Fixed
+- **`Int64ToInt32Fixer` no longer corrupts models whose INT64 initializers
+  feed schema-required-INT64 inputs** (`Reshape` shape, `Slice`
+  starts/ends, ...). The old "fits in INT32" rule produced models that
+  passed the shallow checker but failed strict type inference. The fixer
+  is now use-aware: it converts only when every use (including nested
+  subgraph captures) is at an allowlisted INT32-compatible position, and
+  refuses shadowed names, signature tensors, custom-domain consumers,
+  overflow, and dead initializers. It also no longer retypes an
+  initializer that doubles as a graph input (that silently changed the
+  model's public signature).
+- **Fixers are transactional.** Every fixer (built-in or plugin) runs
+  against an isolated deep-copy candidate that is committed only after it
+  passes `onnx.checker.check_model(full_check=True)` (basic check for
+  external-data models). A fixer that crashes mid-mutation, returns
+  malformed records, mutates without declaring it, or emits an invalid
+  model cannot affect the output; one failed fixer no longer prevents
+  later fixers from running. Plugin tracebacks are hidden unless
+  `TRTCHECK_DEBUG=1`.
+- **`DropDropoutFixer` respects training mode.** Opset >= 12 Dropouts are
+  removed only when `training_mode` is absent or statically false
+  (initializer or Constant, unambiguous across scopes); true, dynamic,
+  computed, or ambiguous training modes are left alone. Opset <= 6
+  requires `is_test=1`.
+- Resize matrix prose corrected against current upstream onnx-tensorrt
+  docs: cubic mode and antialiasing are *not* supported in TRT 10.x (the
+  old notes claimed both were added in 10.0).
+
+### Changed
+- Console/HTML headlines use conservative verdict wording ("LIKELY --
+  static analysis found no known blocker" instead of "LIKELY TO
+  CONVERT"; "CONVERSION BLOCKED" instead of "CONVERSION WILL FAIL"), and
+  both reporters gained a Rule column plus the TRT target in the header.
+- `bench/predict.py` runs the full report (dropping `--severity
+  critical`) because verdicts require the INFO-level uncertainty
+  findings; it maps schema-2.0 verdicts with a 1.x fallback.
+- The exit code is computed from the unfiltered report: `--severity`
+  affects display only.
+
+---
+
+_Earlier unreleased entries (pre-hardening pass):_
+
 ### Fixed
 - The README / case-study `--fix` walkthrough is reproducible again. The
   bundled `uint8_input.onnx` fixture was the degenerate

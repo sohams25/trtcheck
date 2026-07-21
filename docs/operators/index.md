@@ -2,7 +2,7 @@
 
 Per-operator TensorRT support against versions 8.0, 8.6, 10.0, 10.3.
 
-`100` operators tracked.
+`101` operators tracked.
 
 - [Abs](Abs.md)
 - [Add](Add.md)
@@ -12,6 +12,7 @@ Per-operator TensorRT support against versions 8.0, 8.6, 10.0, 10.3.
 - [AveragePool](AveragePool.md)
 - [BatchNormalization](BatchNormalization.md)
 - [Cast](Cast.md)
+- [Clip](Clip.md)
 - [Concat](Concat.md)
 - [Constant](Constant.md)
 - [ConstantOfShape](ConstantOfShape.md)
