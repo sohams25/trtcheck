@@ -46,25 +46,28 @@ $ trtcheck tests/fixtures/failing/uint8_input.onnx
 ```
 
 ```
-╭─────────────────── trtcheck report ───────────────────╮
-│ CONVERSION WILL FAIL                                  │
-│ file: tests/fixtures/failing/uint8_input.onnx         │
-│ opset: 17  producer: trtcheck-fixtures  nodes: 2      │
-│ 1 critical  0 warning  0 info                         │
-╰───────────────────────────────────────────────────────╯
+╭──────────────────────── trtcheck report ────────────────────────╮
+│ CONVERSION BLOCKED -- known critical incompatibilities          │
+│ file: tests/fixtures/failing/uint8_input.onnx  target: TRT 10.3 │
+│ opset: 17  producer: trtcheck-fixtures  nodes: 2                │
+│ 1 critical  0 warning  0 info                                   │
+╰─────────────────────────────────────────────────────────────────╯
                           Detected issues
-┏━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Severity ┃ Node  ┃ Operator ┃ Issue                 ┃ Fix                   ┃
-┡━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━┩
-│ CRITICAL │ input │ Input    │ Input 'input' has     │ Move the UINT8 →      │
-│          │       │          │ dtype UINT8;          │ FLOAT32 conversion    │
-│          │       │          │ TensorRT accepts only │ (and normalization)   │
-│          │       │          │ FP32, FP16, INT32, or │ into your             │
-│          │       │          │ INT8 as graph inputs. │ preprocessing         │
-│          │       │          │                       │ pipeline rather than  │
-│          │       │          │                       │ the model body.       │
-└──────────┴───────┴──────────┴───────────────────────┴───────────────────────┘
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Severity ┃ Rule                  ┃ Node  ┃ Operator ┃ Issue         ┃ Fix           ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ CRITICAL │ TRT-DTYPE-UINT8-INPUT │ input │ Input    │ Input 'input' │ Apply the     │
+│          │                       │       │          │ has dtype     │ UINT8 ->      │
+│          │                       │       │          │ UINT8.        │ FLOAT32       │
+│          │                       │       │          │ TensorRT      │ conversion    │
+│          │                       │       │          │ inputs must   │ (and          │
+│          │                       │       │          │ be FLOAT32,   │ normalization)│
+│          │                       │       │          │ FLOAT16,      │ in your       │
+│          │                       │       │          │ INT32, or     │ preprocessing │
+│          │                       │       │          │ INT8.         │ pipeline.     │
+└──────────┴───────────────────────┴───────┴──────────┴───────────────┴───────────────┘
 Estimated fix time: 15-30 minutes.
+Address critical issues first; warnings can often wait.
 ```
 
 `echo $?` → `1`. Exits non-zero so CI can fail the PR.
@@ -84,6 +87,9 @@ $ trtcheck tests/fixtures/failing/uint8_input.onnx \
   [uint8_input] promote input 'input' from UINT8 to FLOAT and drop the
                 redundant Cast node 'cast_1'
 
+verdict: blocked -> likely (TensorRT 10.3); 1 finding(s) resolved,
+0 remaining, 0 introduced
+
 1 fix(es) applied. Wrote model_fixed.onnx.
 ```
 
@@ -98,12 +104,12 @@ What changed in the graph:
 Re-running trtcheck against the rewritten file:
 
 ```
-╭─────────────────── trtcheck report ───────────────────╮
-│ LIKELY TO CONVERT                                     │
-│ file: model_fixed.onnx                                │
-│ opset: 17  producer: trtcheck-fixtures  nodes: 1      │
-│ 0 critical  0 warning  0 info                         │
-╰───────────────────────────────────────────────────────╯
+╭──────────────────────── trtcheck report ────────────────────────╮
+│ LIKELY -- static analysis found no known blocker                │
+│ file: model_fixed.onnx  target: TensorRT 10.3                   │
+│ opset: 17  producer: trtcheck-fixtures  nodes: 1                │
+│ 0 critical  0 warning  0 info                                   │
+╰─────────────────────────────────────────────────────────────────╯
 No issues detected.
 ```
 
