@@ -24,6 +24,12 @@ def test_resolve_bundled_entry_is_repo_relative() -> None:
 
 
 def test_verdict_mapping() -> None:
+    # Schema 2.x: four-state verdict maps to three outcome buckets.
+    assert verdict_from_report({"verdict": "blocked"}) == "fail"
+    assert verdict_from_report({"verdict": "unverified"}) == "unverified"
+    assert verdict_from_report({"verdict": "likely"}) == "convert"
+    assert verdict_from_report({"verdict": "verified"}) == "convert"
+    # Schema 1.x fallback.
     assert verdict_from_report({"conversion_likely": True}) == "convert"
     assert verdict_from_report({"conversion_likely": False}) == "fail"
 
