@@ -56,13 +56,15 @@ class ControlFlowChecker:
         # "runtime trip count" warnings for outer-scope constants.
         initializer_names = {init.name for init, _ in iter_initializers(model.graph)}
         graph_input_names = {inp.name for inp in model.graph.input}
-        for node, _graph in iter_nodes(model.graph):
+        for node, graph in iter_nodes(model.graph):
             if node.op_type == "Loop":
-                issues.extend(self._check_loop(node, initializer_names, graph_input_names))
+                issues.extend(
+                    self._check_loop(node, initializer_names, graph_input_names, graph.name)
+                )
             elif node.op_type == "If":
-                issues.append(self._check_if(node))
+                issues.append(self._check_if(node, graph.name))
             elif node.op_type == "Scan":
-                issues.append(self._scan_warning(node))
+                issues.append(self._scan_warning(node, graph.name))
         return issues
 
     # -- Loop --------------------------------------------------------------
@@ -72,6 +74,7 @@ class ControlFlowChecker:
         node: onnx.NodeProto,
         initializer_names: set[str],
         graph_input_names: set[str],
+        graph_scope: str,
     ) -> list[Issue]:
         issues: list[Issue] = []
         name = node.name or "<Loop>"
@@ -95,6 +98,7 @@ class ControlFlowChecker:
                         else f"computed value '{trip_input}'"
                     )
                     + " as its trip count",
+                    graph_scope=graph_scope,
                 )
             )
 
@@ -107,28 +111,31 @@ class ControlFlowChecker:
                     node_name=name,
                     operator="Loop",
                     prefix=f"Loop '{node.name}' contains a nested Loop in its body",
+                    graph_scope=graph_scope,
                 )
             )
         return issues
 
     # -- If ---------------------------------------------------------------
 
-    def _check_if(self, node: onnx.NodeProto) -> Issue:
+    def _check_if(self, node: onnx.NodeProto, graph_scope: str) -> Issue:
         return remediation.make_issue(
             "if_detected_unverified",
             node_name=node.name or "<If>",
             operator="If",
             prefix=f"If '{node.name}' detected",
+            graph_scope=graph_scope,
         )
 
     # -- Scan -------------------------------------------------------------
 
-    def _scan_warning(self, node: onnx.NodeProto) -> Issue:
+    def _scan_warning(self, node: onnx.NodeProto, graph_scope: str) -> Issue:
         return remediation.make_issue(
             "scan_dynamic_length",
             node_name=node.name or "<Scan>",
             operator="Scan",
             prefix=f"Scan '{node.name}' detected",
+            graph_scope=graph_scope,
         )
 
 

@@ -45,4 +45,4 @@ def test_python_m_trtcheck_runs_against_clean_fixture() -> None:
         cwd=str(_REPO),
     )
     assert result.returncode == 0, result.stderr
-    assert "convert" in result.stdout.lower()
+    assert "no known blocker" in result.stdout.lower()

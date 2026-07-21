@@ -11,6 +11,15 @@ from typing import Any
 
 VERSIONS = ["8.0", "8.6", "10.0", "10.3"]
 
+# Evidence pointer for conditional-support entries sourced from the upstream
+# onnx-tensorrt operator table (tracks TensorRT 10.x on its main branch).
+_ONNX_TRT_DOCS = "https://github.com/onnx/onnx-tensorrt/blob/main/docs/operators.md"
+_ONNX_TRT_EVIDENCE = {
+    "status": "official_docs",
+    "source": _ONNX_TRT_DOCS,
+    "retrieved": "2026-07-22",
+}
+
 # Status shorthand to keep the source readable:
 #   S = supported, P = partial, N = not_supported, U = unknown
 _STATUS = {"S": "supported", "P": "partial", "N": "not_supported", "U": "unknown"}
@@ -136,8 +145,69 @@ OPERATORS: dict[str, dict[str, Any]] = {
     # Resize / Upsample
     "Resize": {
         "support": expand("P", "P", "S", "S"),
-        "notes": "Only nearest and linear modes pre-10.0. Cubic added in 10.0.",
-        "limitations": ["antialias attribute not supported before TRT 10.0."],
+        "notes": (
+            "Only nearest and linear modes; cubic is not supported "
+            "(onnx-tensorrt docs, retrieved 2026-07-22)."
+        ),
+        "limitations": [
+            "Antialiasing (antialias=1) is not supported.",
+            "coordinate_transformation_mode limited to half_pixel, pytorch_half_pixel, "
+            "tf_half_pixel_for_nn, asymmetric, align_corners.",
+        ],
+        "conditions": [
+            {
+                "id": "resize-mode",
+                "applies_to": ["10.0", "10.3"],
+                "kind": "attribute_allowed",
+                "attribute": "mode",
+                "allowed_values": ["nearest", "linear"],
+                "default_ok": True,
+                "severity": "critical",
+                "message": (
+                    "TensorRT supports only Resize modes 'nearest' and 'linear' "
+                    "(cubic is rejected)."
+                ),
+                "remediation": (
+                    "Re-export with mode=nearest or mode=linear, or implement cubic "
+                    "resize as a plugin."
+                ),
+                "evidence": _ONNX_TRT_EVIDENCE,
+            },
+            {
+                "id": "resize-coord-transform",
+                "applies_to": ["10.0", "10.3"],
+                "kind": "attribute_allowed",
+                "attribute": "coordinate_transformation_mode",
+                "allowed_values": [
+                    "half_pixel",
+                    "pytorch_half_pixel",
+                    "tf_half_pixel_for_nn",
+                    "asymmetric",
+                    "align_corners",
+                ],
+                "default_ok": True,
+                "severity": "critical",
+                "message": (
+                    "TensorRT supports Resize coordinate_transformation_mode in "
+                    "{half_pixel, pytorch_half_pixel, tf_half_pixel_for_nn, asymmetric, "
+                    "align_corners} only."
+                ),
+                "remediation": "Re-export with a supported coordinate_transformation_mode.",
+                "evidence": _ONNX_TRT_EVIDENCE,
+            },
+            {
+                "id": "resize-no-antialias",
+                "applies_to": ["10.0", "10.3"],
+                "kind": "attribute_allowed",
+                "attribute": "antialias",
+                "allowed_values": [0],
+                "default_ok": True,
+                "severity": "critical",
+                "message": "TensorRT does not support antialiased Resize (antialias=1).",
+                "remediation": "Re-export with antialias=0.",
+                "evidence": _ONNX_TRT_EVIDENCE,
+            },
+        ],
     },
     "Upsample": {
         "support": expand("S", "S", "S", "S"),
@@ -191,7 +261,37 @@ OPERATORS: dict[str, dict[str, Any]] = {
     "ConstantOfShape": {"support": expand("S", "S", "S", "S")},
     "ArgMax": {"support": expand("S", "S", "S", "S")},
     "ArgMin": {"support": expand("S", "S", "S", "S")},
-    "TopK": {"support": expand("S", "S", "S", "S")},
+    "TopK": {
+        "support": expand("S", "S", "S", "S"),
+        "conditions": [
+            {
+                "id": "topk-sorted-required",
+                "applies_to": ["10.0", "10.3"],
+                "kind": "attribute_allowed",
+                "attribute": "sorted",
+                "allowed_values": [1],
+                "default_ok": True,
+                "severity": "critical",
+                "message": (
+                    "TensorRT requires TopK attribute sorted=1 (ONNX default). "
+                    "sorted=0 is rejected."
+                ),
+                "remediation": "Re-export with sorted=1, or sort outside the model.",
+                "evidence": _ONNX_TRT_EVIDENCE,
+            },
+            {
+                "id": "topk-k-max-3840",
+                "applies_to": ["10.0", "10.3"],
+                "kind": "constant_input_max",
+                "input_index": 1,
+                "max_value": 3839,
+                "severity": "critical",
+                "message": "TensorRT requires the TopK K input to be less than 3840.",
+                "remediation": ("Reduce K below 3840, or restructure the selection into chunks."),
+                "evidence": _ONNX_TRT_EVIDENCE,
+            },
+        ],
+    },
     "NonZero": {"support": expand("P", "S", "S", "S")},
     "NonMaxSuppression": {
         "support": expand("P", "S", "S", "S"),
@@ -223,8 +323,8 @@ def build_matrix() -> dict[str, Any]:
     module-level ``OPERATORS`` source of truth.
     """
     return {
-        "schema_version": "1.0",
-        "last_updated": "2026-05-21",
+        "schema_version": "2.0",
+        "last_updated": "2026-07-22",
         "target_trt_versions": list(VERSIONS),
         "operators": copy.deepcopy(OPERATORS),
     }

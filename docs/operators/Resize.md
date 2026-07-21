@@ -11,8 +11,9 @@
 
 ## Notes
 
-Only nearest and linear modes pre-10.0. Cubic added in 10.0.
+Only nearest and linear modes; cubic is not supported (onnx-tensorrt docs, retrieved 2026-07-22).
 
 ## Limitations
 
-- antialias attribute not supported before TRT 10.0.
+- Antialiasing (antialias=1) is not supported.
+- coordinate_transformation_mode limited to half_pixel, pytorch_half_pixel, tf_half_pixel_for_nn, asymmetric, align_corners.

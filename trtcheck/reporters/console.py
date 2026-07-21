@@ -17,12 +17,22 @@ from rich.panel import Panel
 from rich.table import Table
 
 from trtcheck._text import strip_unsafe
-from trtcheck.types import AnalysisReport, Severity
+from trtcheck.types import AnalysisReport, Severity, Verdict
 
 _SEV_COLOR = {
     Severity.CRITICAL: "red",
     Severity.WARNING: "yellow",
     Severity.INFO: "blue",
+}
+
+# Four-state verdict -> (headline, border color). The wording is deliberately
+# conservative: LIKELY means "static analysis found no known blocker", never
+# "guaranteed to convert".
+_VERDICT_STYLE = {
+    Verdict.BLOCKED: ("CONVERSION BLOCKED -- known critical incompatibilities", "red"),
+    Verdict.UNVERIFIED: ("UNVERIFIED -- no known blocker, unresolved conditions remain", "yellow"),
+    Verdict.LIKELY: ("LIKELY -- static analysis found no known blocker", "green"),
+    Verdict.VERIFIED: ("VERIFIED -- TensorRT runtime build succeeded", "green"),
 }
 
 
@@ -57,15 +67,12 @@ class ConsoleReporter:
         return buf.getvalue()
 
     def _header(self, report: AnalysisReport) -> Panel:
-        if report.conversion_likely:
-            title = "[bold green]LIKELY TO CONVERT[/bold green]"
-            border = "green"
-        else:
-            title = "[bold red]CONVERSION WILL FAIL[/bold red]"
-            border = "red"
+        headline, border = _VERDICT_STYLE[report.verdict]
+        title = f"[bold {border}]{headline}[/bold {border}]"
+        target = f"  target: TensorRT {report.target_trt}" if report.target_trt else ""
         body = (
             f"{title}\n"
-            f"file: {_sanitize(report.filename)}\n"
+            f"file: {_sanitize(report.filename)}{target}\n"
             f"opset: {report.opset_version}  producer: {_sanitize(report.producer)}  "
             f"nodes: {report.total_nodes}\n"
             f"{report.critical_count} critical  "
@@ -77,6 +84,7 @@ class ConsoleReporter:
     def _issues_table(self, report: AnalysisReport) -> Table:
         table = Table(title="Detected issues", show_lines=True)
         table.add_column("Severity", style="bold")
+        table.add_column("Rule", overflow="fold")
         # overflow="fold" hard-wraps long unbroken tokens (export commands, URLs,
         # paths) instead of clipping them with an ellipsis -- the remediation a
         # user must apply is never silently truncated.
@@ -88,6 +96,7 @@ class ConsoleReporter:
             color = _SEV_COLOR[issue.severity]
             table.add_row(
                 f"[{color}]{issue.severity.value.upper()}[/{color}]",
+                _sanitize(issue.rule_id),
                 _sanitize(issue.node_name),
                 _sanitize(issue.operator),
                 _sanitize(issue.message),
@@ -96,9 +105,16 @@ class ConsoleReporter:
         return table
 
     def _summary(self, report: AnalysisReport) -> str:
-        if report.conversion_likely:
-            return f"\nEstimated fix time: {report.estimated_fix_time}"
-        return (
-            f"\nEstimated fix time: {report.estimated_fix_time}.\n"
-            "Address critical issues first; warnings can often wait."
-        )
+        if report.verdict is Verdict.BLOCKED:
+            return (
+                f"\nEstimated fix time: {report.estimated_fix_time}.\n"
+                "Address critical issues first; warnings can often wait."
+            )
+        if report.verdict is Verdict.UNVERIFIED:
+            unresolved = sum(1 for i in report.issues if i.verify_required)
+            return (
+                f"\nEstimated fix time: {report.estimated_fix_time}.\n"
+                f"{unresolved} finding(s) need runtime verification "
+                "(trtexec) or manual review before this model can be called safe."
+            )
+        return f"\nEstimated fix time: {report.estimated_fix_time}"

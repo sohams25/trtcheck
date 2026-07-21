@@ -89,21 +89,21 @@ def _float64_initializer_shadows_input() -> onnx.ModelProto:
     return model
 
 
-def test_int64_fixer_updates_shadowed_input_dtype() -> None:
+def test_int64_fixer_refuses_initializer_shadowing_graph_input() -> None:
+    """An initializer that also appears in graph.input is part of the model's
+    public signature. The schema-aware fixer refuses to retype it (converting
+    would silently change the input contract for callers feeding that input)."""
     model = _int64_initializer_shadows_input()
     # Premise: the input model is genuinely valid under full type inference.
     assert_valid_model(model)
 
     fixed, applied = apply_all(model, default_fixers())
-    assert [a.fixer for a in applied] == ["int64_to_int32"]
+    assert all(a.fixer != "int64_to_int32" for a in applied)
 
-    # The initializer was cast...
-    new_init = next(i for i in fixed.graph.initializer if i.name == "wi")
-    assert new_init.data_type == TensorProto.INT32
-    # ...and the shadowing graph input must be retyped to match, or full type
-    # inference rejects the model.
-    new_input = next(i for i in fixed.graph.input if i.name == "wi")
-    assert new_input.type.tensor_type.elem_type == TensorProto.INT32
+    unchanged = next(i for i in fixed.graph.initializer if i.name == "wi")
+    assert unchanged.data_type == TensorProto.INT64
+    still_input = next(i for i in fixed.graph.input if i.name == "wi")
+    assert still_input.type.tensor_type.elem_type == TensorProto.INT64
     assert_valid_model(fixed)
 
 

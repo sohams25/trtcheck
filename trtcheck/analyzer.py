@@ -14,7 +14,7 @@ from trtcheck.checkers.dynamic_shapes import DynamicShapeChecker
 from trtcheck.checkers.graph_structure import GraphStructureChecker
 from trtcheck.checkers.operator_support import OperatorSupportChecker
 from trtcheck.checkers.precision import PrecisionChecker
-from trtcheck.types import AnalysisReport, CheckCategory, Issue, Severity
+from trtcheck.types import AnalysisReport, CheckCategory, Confidence, Issue, Severity
 
 # Names of the checkers trtcheck ships. A crash in one of these is a bug in
 # trtcheck and must surface loudly; only *third-party plugin* checkers are
@@ -48,6 +48,10 @@ class AnalyzerConfig:
     max_model_size_mb: int = 500  # refuse to load files larger than this
     discover_entry_point_plugins: bool = True
     disable_plugins: list[str] = field(default_factory=list)
+    # Custom ONNX domains the user declares as backed by an installed
+    # TensorRT plugin. Ops in these domains stop producing
+    # TRT-OP-CUSTOM-DOMAIN unverified findings.
+    plugin_domains: list[str] = field(default_factory=list)
 
 
 class Analyzer:
@@ -64,6 +68,7 @@ class Analyzer:
             OperatorSupportChecker(
                 matrix_path=self.config.matrix_path,
                 target_trt=self.config.target_trt,
+                plugin_domains=self.config.plugin_domains,
             ),
             DynamicShapeChecker(),
             ControlFlowChecker(target_trt=self.config.target_trt),
@@ -115,8 +120,18 @@ class Analyzer:
                         message=(f"plugin {name!r} raised {exc.__class__.__name__}: {exc}"),
                         remediation=("Disable the plugin with --disable-plugin or uninstall it."),
                         docs_link=None,
+                        rule_id="TRT-PLUGIN-CHECKER-ERROR",
+                        confidence=Confidence.LOW,
+                        verify_required=True,
                     )
                 )
+
+        # Every finding in this report was made against the same TRT target;
+        # stamp it on issues whose checker didn't (precision/graph checks are
+        # target-independent but the report they land in is not).
+        for issue in all_issues:
+            if issue.target_trt is None:
+                issue.target_trt = self.config.target_trt
 
         # Sort: critical first, then warning, then info. Stable.
         all_issues.sort(key=lambda i: Severity.rank(i.severity))
@@ -125,6 +140,7 @@ class Analyzer:
             (o.version for o in model.opset_import if o.domain in ("", "ai.onnx")), default=0
         )
         report = AnalysisReport(
+            target_trt=self.config.target_trt,
             filename=filename,
             onnx_ir_version=str(model.ir_version),
             opset_version=opset,

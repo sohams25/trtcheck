@@ -7,14 +7,26 @@ analyses (visualization, latency estimates) more accurate.
 The fixer refuses when the Dropout emits a mask output that is referenced
 elsewhere -- the mask is a real value some models use, not just training
 noise.
+
+Removal is inference-semantics-preserving ONLY when the node is provably in
+inference mode. Opset >= 12 Dropout takes an optional third ``training_mode``
+input: absent or statically-false means inference (identity); true, dynamic,
+or unresolvable means the node's behavior is not the identity and it must be
+left alone. Opset <= 6 Dropout carries an ``is_test`` attribute with the same
+role (default 0 = training).
 """
 
 from __future__ import annotations
 
+import logging
+
 import onnx
+from onnx import numpy_helper
 
 from trtcheck._graph import iter_nodes, iter_subgraphs
 from trtcheck.fixers import FixApplied
+
+_logger = logging.getLogger("trtcheck.fixers")
 
 
 class DropDropoutFixer:
@@ -32,10 +44,24 @@ class DropDropoutFixer:
 
     def _fix_graph(self, model: onnx.ModelProto, graph: onnx.GraphProto) -> list[FixApplied]:
         applied: list[FixApplied] = []
+        default_opset = max(
+            (o.version for o in model.opset_import if o.domain in ("", "ai.onnx")),
+            default=0,
+        )
 
         # Walk a copy of the node list because we mutate graph.node mid-loop.
         for node in list(graph.node):
             if node.op_type != "Dropout":
+                continue
+
+            # Only remove a Dropout that is provably in inference mode.
+            mode = _resolve_inference_mode(model, node, default_opset)
+            if mode != "inference":
+                _logger.info(
+                    "drop_dropout: skipping '%s': training mode is %s",
+                    node.name or "<Dropout>",
+                    mode,
+                )
                 continue
 
             # The data output is always output[0]. Outputs[1:] are the mask
@@ -95,6 +121,77 @@ class DropDropoutFixer:
                 )
             )
         return applied
+
+
+def _resolve_inference_mode(
+    model: onnx.ModelProto, node: onnx.NodeProto, default_opset: int
+) -> str:
+    """Classify a Dropout node's training mode.
+
+    Returns ``"inference"`` when removal preserves inference semantics,
+    otherwise a short reason string ("training", "dynamic", "ambiguous", ...)
+    used for the skip log.
+    """
+    if default_opset != 0 and default_opset <= 6:
+        # Opset <= 6: is_test attribute, default 0 (training behavior).
+        is_test = next((a.i for a in node.attribute if a.name == "is_test"), 0)
+        return "inference" if is_test == 1 else "training (is_test != 1)"
+
+    # Opset 7-11 Dropout has no training switch: inference semantics are the
+    # identity. Opset >= 12 adds the optional training_mode input.
+    if len(node.input) < 3 or not node.input[2]:
+        return "inference"
+
+    name = node.input[2]
+    value, reason = _resolve_static_bool(model, name)
+    if value is None:
+        return reason
+    return "inference" if value is False else "training (training_mode=true)"
+
+
+def _resolve_static_bool(model: onnx.ModelProto, name: str) -> tuple[bool | None, str]:
+    """Resolve ``name`` to a static scalar bool if it is an initializer or a
+    Constant node output. Returns (value, reason-if-unresolvable).
+
+    A name produced in more than one scope is ambiguous (shadowing) and is
+    refused rather than guessed at.
+    """
+    initializers: list[onnx.TensorProto] = []
+    producer_nodes: list[onnx.NodeProto] = []
+    for graph in iter_subgraphs(model.graph):
+        for init in graph.initializer:
+            if init.name == name:
+                initializers.append(init)
+        for n in graph.node:
+            if name in n.output:
+                producer_nodes.append(n)
+
+    total_defs = len(initializers) + len(producer_nodes)
+    if total_defs > 1:
+        return None, "ambiguous (name defined in multiple scopes)"
+    if total_defs == 0:
+        return None, "dynamic (fed from a graph input or unresolved name)"
+
+    tensor: onnx.TensorProto | None
+    if initializers:
+        tensor = initializers[0]
+    else:
+        producer = producer_nodes[0]
+        if producer.op_type != "Constant":
+            return None, "dynamic (produced by a non-Constant node)"
+        tensor = next(
+            (a.t for a in producer.attribute if a.name == "value" and a.HasField("t")),
+            None,
+        )
+        if tensor is None:
+            return None, "Constant producer carries no tensor value"
+    try:
+        arr = numpy_helper.to_array(tensor)
+    except Exception:
+        return None, "unreadable training_mode tensor"
+    if arr.size != 1:
+        return None, "training_mode is not a scalar"
+    return bool(arr.reshape(())), ""
 
 
 def _referenced_in_model(model: onnx.ModelProto, name: str) -> bool:
