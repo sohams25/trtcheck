@@ -2,7 +2,7 @@
 
 Measured accuracy of trtcheck's **static** verdicts against the
 `bench/manifest.yaml` corpus. Produced by the `bench/` harness; raw
-predictions in [`bench/outcomes.json`](bench/outcomes.json).
+predictions in [`bench/outcomes.json`](../../bench/outcomes.json).
 
 - **trtcheck version:** 1.0.0 + the then-unreleased verdict-model changes (shipped in v1.1.0)
 - **Target:** TensorRT 10.3, full report (verdict-based; the old `--severity critical` gate is no longer used because verdicts need the INFO-level uncertainty findings)

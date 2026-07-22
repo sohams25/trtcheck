@@ -27,6 +27,9 @@ findings it cannot settle statically leave the verdict `unverified`.
 - [Rule registry](rules.md) -- stable finding ids for CI filtering
 - [Design: verdicts & fix safety](design/analysis-verdicts-and-fix-safety.md) -- invariants and trust model
 - [Operators](operators/index.md) -- per-operator TensorRT support matrix
+- [Validation scorecard](evidence/scorecard.md) -- measured accuracy on the bench corpus
+- [TensorRT 10.3 runtime evidence](evidence/tensorrt-10.3-smoke.md) -- real trtexec smoke results
+- [Security model](security-model.md) -- reviewed surfaces and trust boundaries
 
 ## What it checks
 

@@ -15,7 +15,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   `--verify-runtime` and independent direct `trtexec` runs. New
   repo-owned runner: `scripts/real-smoke-container.sh` +
   `scripts/real_tensorrt_smoke.py`; evidence in
-  `REAL_TENSORRT_VALIDATION_REPORT.md` and
+  `docs/evidence/tensorrt-10.3-smoke.md` and
   `bench/real_tensorrt_smoke_results.json`. Recorded TensorRT-10.3
   trtexec behavior: dynamic models without shape flags are auto-overridden
   to 1x1x1x1 (warning), not rejected.
@@ -28,7 +28,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
   includes the owning graph scope; `bench/score.py --json` emits a
   machine-readable summary; `scripts/package-smoke.sh` installs the built
   wheel into a fresh venv and exercises the CLI from outside the repo;
-  `SECURITY_REVIEW.md` documents the reviewed surfaces and trust model.
+  `docs/security-model.md` documents the reviewed surfaces and trust model.
 - **Four-state verdict model.** `AnalysisReport.verdict` is now one of
   `blocked` / `unverified` / `likely` / `verified` (`trtcheck.Verdict`).
   `unverified` is new: no known blocker, but unresolved conditions remain.
@@ -151,7 +151,7 @@ _Also in this release (earlier unreleased entries):_
   markdown under `docs/`, which GitHub renders directly.
 
 ### Added
-- `SCORECARD.md`: first published run of the `bench/` validation harness.
+- `docs/evidence/scorecard.md`: first published run of the `bench/` validation harness.
   9-model corpus (3 ONNX Model Zoo models + 6 bundled fixtures), scored at
   the CI gate configuration (`--severity critical`, TRT 10.3): precision
   1.000, recall 1.000. Raw predictions committed as `bench/outcomes.json`.
