@@ -35,9 +35,11 @@ def test_empty_int64_initializer_does_not_crash() -> None:
 
 
 def test_int64_initializer_inside_if_branch_is_fixed() -> None:
+    """Descent proof: an INT64 initializer buried in an If branch, used only at
+    an INT32-compatible position (Gather indices), is converted."""
     buried = numpy_helper.from_array(np.array([1, 2, 3], dtype=np.int64), name="buried_idx")
     then_g = helper.make_graph(
-        [helper.make_node("Identity", ["buried_idx"], ["t_out"], name="id")],
+        [helper.make_node("Gather", ["data", "buried_idx"], ["t_out"], name="id", axis=0)],
         "then_body",
         [],
         [_undef_out("t_out")],
@@ -67,12 +69,17 @@ def test_int64_initializer_inside_if_branch_is_fixed() -> None:
     ifnode = helper.make_node(
         "If", ["cond"], ["if_out"], name="i", then_branch=then_g, else_branch=else_g
     )
-    g = helper.make_graph([cond, ifnode], "root", [], [_undef_out("if_out")])
+    g = helper.make_graph(
+        [cond, ifnode],
+        "root",
+        [helper.make_tensor_value_info("data", TensorProto.FLOAT, [10])],
+        [_undef_out("if_out")],
+    )
     model = helper.make_model(g, opset_imports=[helper.make_opsetid("", 17)])
 
     new_model, applied = apply_all(model, [Int64ToInt32Fixer()])
 
-    assert applied, "fixer must descend into the If branch and cast the buried INT64 weight"
+    assert applied, "fixer must descend into the If branch and cast the buried INT64 indices"
     # locate the buried initializer in the rewritten model's then_branch
     if_node = next(n for n in new_model.graph.node if n.op_type == "If")
     then_branch = next(a.g for a in if_node.attribute if a.name == "then_branch")
@@ -84,7 +91,7 @@ def test_default_fixer_pipeline_handles_subgraphs_without_error() -> None:
     """The full --fix pipeline must run cleanly over a model with subgraphs."""
     buried = numpy_helper.from_array(np.array([4, 5], dtype=np.int64), name="bidx")
     then_g = helper.make_graph(
-        [helper.make_node("Identity", ["bidx"], ["t_out"], name="id")],
+        [helper.make_node("Gather", ["data", "bidx"], ["t_out"], name="id", axis=0)],
         "then_body",
         [],
         [_undef_out("t_out")],
@@ -114,7 +121,12 @@ def test_default_fixer_pipeline_handles_subgraphs_without_error() -> None:
     ifnode = helper.make_node(
         "If", ["cond"], ["if_out"], name="i", then_branch=then_g, else_branch=else_g
     )
-    g = helper.make_graph([cond, ifnode], "root", [], [_undef_out("if_out")])
+    g = helper.make_graph(
+        [cond, ifnode],
+        "root",
+        [helper.make_tensor_value_info("data", TensorProto.FLOAT, [10])],
+        [_undef_out("if_out")],
+    )
     model = helper.make_model(g, opset_imports=[helper.make_opsetid("", 17)])
 
     _new, applied = apply_all(model, default_fixers())  # must not raise

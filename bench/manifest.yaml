@@ -66,3 +66,24 @@ models:
     source: tests/fixtures/clean_minimal.onnx
     expected: convert
     reason: none
+
+  - name: bundled_topk_unsorted
+    source: tests/fixtures/failing/topk_unsorted.onnx
+    expected: fail
+    reason: operator_support
+
+  # No TensorRT plugin exists for com.example::FancyCustomOp, so a real
+  # trtexec parse fails. trtcheck predicts "unverified" (honest uncertainty),
+  # which scores as unverified coverage, never as a pass.
+  - name: bundled_custom_domain
+    source: tests/fixtures/custom_domain.onnx
+    expected: fail
+    reason: operator_support
+
+  # The fixer-safety regression model: valid ONNX, converts fine. Guards
+  # against trtcheck --fix corrupting Reshape shape inputs and against the
+  # analyzer over-flagging INT64 shape initializers.
+  - name: bundled_reshape_int64_shape
+    source: tests/fixtures/reshape_int64_shape.onnx
+    expected: convert
+    reason: none

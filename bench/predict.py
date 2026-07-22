@@ -1,9 +1,8 @@
 """Run trtcheck against every manifest entry and write an outcomes file.
 
 This is the trtcheck leg of the validation harness: for each model in
-bench/manifest.yaml it invokes the CLI with ``--format json --severity
-critical`` (the CI gate configuration) and records the verdict as
-``convert`` or ``fail``. The result feeds bench/score.py.
+bench/manifest.yaml it invokes the CLI with ``--format json`` and records the verdict as
+``convert``, ``unverified``, or ``fail``. The result feeds bench/score.py.
 
 URL-sourced entries are read from bench/cache/ -- run bench/fetch.py
 first. Bundled-fixture entries are read in place, so the pipeline works
@@ -35,7 +34,20 @@ def resolve_model_path(entry: dict[str, Any], root: Path) -> Path:
 
 
 def verdict_from_report(report: dict[str, Any]) -> str:
-    """Map trtcheck's JSON report to the outcomes vocabulary."""
+    """Map trtcheck's JSON report to the outcomes vocabulary.
+
+    Schema 2.x reports carry a four-state ``verdict``; it maps to three
+    outcome buckets: blocked -> "fail", unverified -> "unverified",
+    likely/verified -> "convert". Schema 1.x reports (no ``verdict`` key)
+    fall back to the boolean ``conversion_likely``.
+    """
+    verdict = report.get("verdict")
+    if verdict is not None:
+        if verdict == "blocked":
+            return "fail"
+        if verdict == "unverified":
+            return "unverified"
+        return "convert"
     return "convert" if report["conversion_likely"] else "fail"
 
 
@@ -57,7 +69,7 @@ def predict(
                 f"{entry['name']}: {model} not found -- run bench/fetch.py first?"
             )
         proc = subprocess.run(
-            [*cmd, str(model), "--format", "json", "--severity", "critical"],
+            [*cmd, str(model), "--format", "json"],
             capture_output=True,
             text=True,
         )

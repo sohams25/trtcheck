@@ -218,11 +218,65 @@ def create_control_flow_loop() -> onnx.ModelProto:
     return _make_model(graph)
 
 
+# -- New corpus entries (verdict-model era) -----------------------------------
+
+
+def create_topk_unsorted() -> onnx.ModelProto:
+    """TopK with sorted=0: TensorRT 10.x rejects it (onnx-tensorrt docs).
+
+    Exercises the conditional-support rule TRT-OP-CONDITION.
+    """
+    x = helper.make_tensor_value_info("x", TensorProto.FLOAT, [100])
+    vals = helper.make_tensor_value_info("vals", TensorProto.FLOAT, [3])
+    idxs = helper.make_tensor_value_info("idxs", TensorProto.INT64, [3])
+    k = numpy_helper.from_array(np.array([3], dtype=np.int64), name="k")
+    topk = helper.make_node("TopK", ["x", "k"], ["vals", "idxs"], name="topk_0", axis=0, sorted=0)
+    graph = helper.make_graph([topk], "topk_unsorted", [x], [vals, idxs], initializer=[k])
+    return _make_model(graph)
+
+
+def create_custom_domain() -> onnx.ModelProto:
+    """A custom-domain op with no TensorRT plugin declared.
+
+    trtcheck must report this as UNVERIFIED (rule TRT-OP-CUSTOM-DOMAIN), not
+    silently clean and not a hard blocker. Without a plugin, a real trtexec
+    parse fails, so the corpus labels it expected: fail.
+    """
+    x = helper.make_tensor_value_info("x", TensorProto.FLOAT, [1, 4])
+    y = helper.make_tensor_value_info("y", TensorProto.FLOAT, [1, 4])
+    node = helper.make_node("FancyCustomOp", ["x"], ["y"], name="c0", domain="com.example")
+    graph = helper.make_graph([node], "custom_domain", [x], [y])
+    model = helper.make_model(
+        graph,
+        producer_name="trtcheck-fixtures",
+        opset_imports=[helper.make_opsetid("", OPSET), helper.make_opsetid("com.example", 1)],
+    )
+    model.ir_version = IR_VERSION
+    return model
+
+
+def create_reshape_int64_shape() -> onnx.ModelProto:
+    """Valid model whose INT64 initializer is Reshape's shape input.
+
+    The P0 fixer-safety regression: converting that initializer to INT32
+    breaks the ONNX schema. trtcheck --fix must leave it alone, and the
+    analyzer must not report the model as blocked.
+    """
+    x = helper.make_tensor_value_info("x", TensorProto.FLOAT, [2, 6])
+    y = helper.make_tensor_value_info("y", TensorProto.FLOAT, [3, 4])
+    shape = numpy_helper.from_array(np.array([3, 4], dtype=np.int64), name="new_shape")
+    reshape = helper.make_node("Reshape", ["x", "new_shape"], ["y"], name="reshape_0")
+    graph = helper.make_graph([reshape], "reshape_int64_shape", [x], [y], initializer=[shape])
+    return _make_model(graph)
+
+
 # -- Driver ------------------------------------------------------------------
 
 
 _CLEAN: dict[str, callable] = {
     "clean_minimal.onnx": create_clean_minimal,
+    "custom_domain.onnx": create_custom_domain,
+    "reshape_int64_shape.onnx": create_reshape_int64_shape,
 }
 
 _FAILING: dict[str, callable] = {
@@ -231,6 +285,7 @@ _FAILING: dict[str, callable] = {
     "fully_dynamic.onnx": create_fully_dynamic,
     "uint8_input.onnx": create_uint8_input,
     "control_flow_loop.onnx": create_control_flow_loop,
+    "topk_unsorted.onnx": create_topk_unsorted,
 }
 
 

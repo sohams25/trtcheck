@@ -36,6 +36,11 @@ import yaml
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _VALID_OUTCOMES = {"convert", "fail"}
+# trtcheck predictions may additionally be "unverified": no known blocker but
+# unresolved conditions remain. Unverified predictions are excluded from the
+# blocker confusion matrix and reported as coverage instead -- an unverified
+# call is neither a caught failure nor a clean bill of health.
+_VALID_PREDICTIONS = _VALID_OUTCOMES | {"unverified"}
 
 
 @dataclass
@@ -48,10 +53,45 @@ class ScoreResult:
     false_negative: int = 0
     skipped: list[str] = field(default_factory=list)
     drift: list[str] = field(default_factory=list)
+    # Entries trtcheck declined to classify (prediction == "unverified"),
+    # split by what the ground truth says they actually do.
+    unverified_on_fail: list[str] = field(default_factory=list)
+    unverified_on_convert: list[str] = field(default_factory=list)
 
     @property
     def total(self) -> int:
         return self.true_positive + self.false_positive + self.true_negative + self.false_negative
+
+    @property
+    def unverified_total(self) -> int:
+        return len(self.unverified_on_fail) + len(self.unverified_on_convert)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Machine-readable summary (written by --json)."""
+        return {
+            "true_positive": self.true_positive,
+            "false_positive": self.false_positive,
+            "true_negative": self.true_negative,
+            "false_negative": self.false_negative,
+            "scored": self.total,
+            "blocker_precision": self.precision,
+            "blocker_recall": self.recall,
+            "blocker_f1": self.f1,
+            "unverified_on_fail": list(self.unverified_on_fail),
+            "unverified_on_convert": list(self.unverified_on_convert),
+            "unverified_coverage": self.unverified_coverage,
+            "skipped": list(self.skipped),
+            "drift": list(self.drift),
+        }
+
+    @property
+    def unverified_coverage(self) -> float:
+        """Fraction of all classified-or-unverified entries trtcheck declined
+        to classify. High coverage with low blocker recall means the tool is
+        honest but not yet informative; low coverage with high recall is the
+        goal."""
+        denom = self.total + self.unverified_total
+        return self.unverified_total / denom if denom else 0.0
 
     @property
     def precision(self) -> float:
@@ -94,12 +134,20 @@ def score(
             continue
 
         trtcheck_pred = pred_block["trtcheck"]
-        if trtcheck_pred not in _VALID_OUTCOMES:
+        if trtcheck_pred not in _VALID_PREDICTIONS:
             raise ValueError(f"outcomes['{name}'].trtcheck has invalid value {trtcheck_pred!r}")
 
         trtexec_pred = pred_block.get("trtexec")
         if trtexec_pred and trtexec_pred != expected:
             result.drift.append(name)
+
+        if trtcheck_pred == "unverified":
+            # Never counted as success: tracked separately, both ways.
+            if expected == "fail":
+                result.unverified_on_fail.append(name)
+            else:
+                result.unverified_on_convert.append(name)
+            continue
 
         # "fail" is the positive class
         if trtcheck_pred == "fail" and expected == "fail":
@@ -123,9 +171,19 @@ def format_report(s: ScoreResult) -> str:
     lines.append(f"  true negative: {s.true_negative}   (trtcheck=convert, expected=convert)")
     lines.append(f"  false negative:{s.false_negative}   (trtcheck=convert, expected=fail)")
     lines.append("")
-    lines.append(f"  precision: {s.precision:.3f}")
-    lines.append(f"  recall:    {s.recall:.3f}")
-    lines.append(f"  f1:        {s.f1:.3f}")
+    lines.append(f"  blocker precision: {s.precision:.3f}")
+    lines.append(f"  blocker recall:    {s.recall:.3f}")
+    lines.append(f"  blocker f1:        {s.f1:.3f}")
+    if s.unverified_total:
+        lines.append("")
+        lines.append(
+            f"  unverified: {s.unverified_total} "
+            f"(coverage {s.unverified_coverage:.3f}; "
+            f"{len(s.unverified_on_fail)} were real failures, "
+            f"{len(s.unverified_on_convert)} actually convert)"
+        )
+        for name in s.unverified_on_fail + s.unverified_on_convert:
+            lines.append(f"    - {name}")
     if s.skipped:
         lines.append("")
         lines.append(f"  skipped (no prediction): {len(s.skipped)}")
@@ -153,6 +211,13 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="Path to outcomes.json produced by the validation runner.",
     )
+    parser.add_argument(
+        "--json",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help="Also write the summary as machine-readable JSON to PATH.",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -170,6 +235,9 @@ def main(argv: list[str] | None = None) -> int:
 
     result = score(manifest, outcomes)
     print(format_report(result))
+    if args.json is not None:
+        args.json.write_text(json.dumps(result.to_dict(), indent=2) + "\n")
+        print(f"wrote {args.json}")
     return 0
 
 

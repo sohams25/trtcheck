@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from importlib import resources
 from typing import Any
 
-from trtcheck.types import CheckCategory, Issue, Severity
+from trtcheck.types import CheckCategory, Confidence, Issue, Severity
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,9 @@ class RemediationEntry:
     explanation: str
     remediation: str
     docs_link: str | None = None
+    rule_id: str = ""
+    confidence: Confidence = Confidence.HIGH
+    verify_required: bool = False
 
 
 def _to_entry(key: str, raw: dict[str, Any]) -> RemediationEntry:
@@ -51,6 +54,9 @@ def _to_entry(key: str, raw: dict[str, Any]) -> RemediationEntry:
             explanation=raw["explanation"],
             remediation=raw["remediation"],
             docs_link=raw.get("docs_link"),
+            rule_id=raw["rule_id"],
+            confidence=Confidence(raw.get("confidence", "high")),
+            verify_required=bool(raw.get("verify_required", False)),
         )
     except (ValueError, KeyError) as exc:
         raise ValueError(f"remediation_db.json entry {key!r} is invalid: {exc}") from exc
@@ -83,7 +89,20 @@ def known_ids() -> frozenset[str]:
     return frozenset(_DB)
 
 
-def make_issue(issue_id: str, *, node_name: str, operator: str, prefix: str) -> Issue:
+def rule_ids() -> frozenset[str]:
+    """Every stable rule id defined in remediation_db.json."""
+    return frozenset(e.rule_id for e in _DB.values())
+
+
+def make_issue(
+    issue_id: str,
+    *,
+    node_name: str,
+    operator: str,
+    prefix: str,
+    graph_scope: str = "",
+    target_trt: str | None = None,
+) -> Issue:
     """Build an :class:`Issue` for ``issue_id``.
 
     The per-node ``prefix`` (built by the checker from node context, e.g.
@@ -100,4 +119,9 @@ def make_issue(issue_id: str, *, node_name: str, operator: str, prefix: str) -> 
         message=f"{prefix}. {entry.explanation}",
         remediation=entry.remediation,
         docs_link=entry.docs_link,
+        rule_id=entry.rule_id,
+        confidence=entry.confidence,
+        verify_required=entry.verify_required,
+        graph_scope=graph_scope,
+        target_trt=target_trt,
     )

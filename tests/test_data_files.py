@@ -29,7 +29,7 @@ def remediation() -> dict:
 
 class TestOperatorMatrix:
     def test_top_level_fields(self, matrix: dict) -> None:
-        assert matrix["schema_version"] == "1.0"
+        assert matrix["schema_version"] == "2.0"
         assert set(matrix["target_trt_versions"]) == _EXPECTED_VERSIONS
         assert isinstance(matrix["operators"], dict)
 
@@ -64,7 +64,7 @@ class TestOperatorMatrix:
 
 class TestRemediationDb:
     def test_top_level_fields(self, remediation: dict) -> None:
-        assert remediation["schema_version"] == "1.0"
+        assert remediation["schema_version"] == "2.0"
         assert isinstance(remediation["issues"], dict)
 
     def test_minimum_entry_count(self, remediation: dict) -> None:

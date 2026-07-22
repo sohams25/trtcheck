@@ -11,39 +11,34 @@ import onnx
 
 from trtcheck import __version__
 from trtcheck.analyzer import _BUILTIN_CHECKER_NAMES, Analyzer, AnalyzerConfig, safe_load
-from trtcheck.fixers import FixApplied, apply_all, default_fixers
-from trtcheck.plugins import Fixer, Reporter, load_plugins
+from trtcheck.fixers import (
+    default_fixers,
+    run_fixers,
+    validate_model,
+    validation_level_for,
+)
+from trtcheck.plugins import Reporter, load_plugins
 from trtcheck.reporters.console import ConsoleReporter
 from trtcheck.reporters.html import HTMLReporter
 from trtcheck.reporters.json import JSONReporter
-from trtcheck.types import AnalysisReport, Severity
+from trtcheck.types import REPORT_SCHEMA_VERSION, AnalysisReport, Severity, Verdict
 
 _FORMATS = ["console", "json", "html"]
 _SEVERITIES = ["critical", "warning", "info"]
 _KNOWN_TARGETS = ["8.0", "8.6", "10.0", "10.3"]
+_FAIL_ON = ["blocked", "unverified"]
 
 
-class _SafePluginFixer:
-    """Isolate a third-party fixer the way the analyzer isolates plugin
-    checkers: a crash is reported on stderr and skipped, never a traceback.
-    A partial mutation from a crashed fixer is caught downstream by the
-    onnx.checker validation before anything is written."""
-
-    def __init__(self, inner: Fixer) -> None:
-        self._inner = inner
-        self.name = getattr(inner, "name", inner.__class__.__name__)
-
-    def fix(self, model: onnx.ModelProto) -> list[FixApplied]:
-        try:
-            return self._inner.fix(model)
-        except Exception as exc:
-            click.echo(
-                f"warning: plugin fixer {self.name!r} raised "
-                f"{exc.__class__.__name__}: {exc}; skipped "
-                "(--disable-plugin to silence)",
-                err=True,
-            )
-            return []
+# Exit codes (documented in docs/usage.md):
+#   0  verdict is LIKELY or VERIFIED (or UNVERIFIED unless --fail-on unverified)
+#   1  verdict is BLOCKED, or a fatal CLI error
+#   2  usage error (Click)
+def _exit_code(report: AnalysisReport, fail_on: str) -> int:
+    if report.verdict is Verdict.BLOCKED:
+        return 1
+    if fail_on == "unverified" and report.verdict is Verdict.UNVERIFIED:
+        return 1
+    return 0
 
 
 def _plugin_reporters(disable_plugins: tuple[str, ...] = ()) -> dict[str, Reporter]:
@@ -95,6 +90,9 @@ def _filter_issues(report: AnalysisReport, minimum: str) -> AnalysisReport:
         producer=report.producer,
         total_nodes=report.total_nodes,
         issues=kept,
+        target_trt=report.target_trt,
+        runtime_verified=report.runtime_verified,
+        runtime_verification=report.runtime_verification,
     )
     return filtered
 
@@ -219,6 +217,51 @@ def _emit(text: str, output_path: Path | None, force: bool = False) -> None:
     metavar="NAME",
     help="Exclude a plugin by its name. May be passed multiple times.",
 )
+@click.option(
+    "--plugin-domain",
+    "plugin_domains",
+    multiple=True,
+    metavar="DOMAIN",
+    help=(
+        "Declare a custom ONNX domain as backed by an installed TensorRT "
+        "plugin, suppressing its TRT-OP-CUSTOM-DOMAIN findings."
+    ),
+)
+@click.option(
+    "--fail-on",
+    type=click.Choice(_FAIL_ON),
+    default="blocked",
+    show_default=True,
+    help=(
+        "Exit non-zero on this verdict or worse: 'blocked' fails only on "
+        "known blockers; 'unverified' also fails when unresolved conditions "
+        "remain."
+    ),
+)
+@click.option(
+    "--verify-runtime",
+    is_flag=True,
+    default=False,
+    help=(
+        "After static analysis, run 'trtexec --onnx=MODEL' to verify with a "
+        "real TensorRT build. Requires trtexec (and usually a GPU)."
+    ),
+)
+@click.option(
+    "--trtexec",
+    "trtexec_path",
+    type=click.Path(path_type=str),
+    default=None,
+    help="Path to the trtexec executable (default: search PATH).",
+)
+@click.option(
+    "--verify-timeout",
+    type=int,
+    default=600,
+    show_default=True,
+    metavar="SECONDS",
+    help="Timeout for the trtexec run started by --verify-runtime.",
+)
 def main(
     models: tuple[Path, ...],
     target_trt: str,
@@ -232,6 +275,11 @@ def main(
     dry_run: bool,
     list_plugins: bool,
     disable_plugins: tuple[str, ...],
+    plugin_domains: tuple[str, ...],
+    fail_on: str,
+    verify_runtime: bool,
+    trtexec_path: str | None,
+    verify_timeout: int,
 ) -> None:
     """Run trtcheck against one or two ONNX models.
 
@@ -260,7 +308,18 @@ def main(
     path = models[0]
 
     if fix_mode:
-        _run_fix(path, output, force, dry_run, max_model_size, disable_plugins)
+        _run_fix(
+            path,
+            output,
+            force,
+            dry_run,
+            max_model_size,
+            disable_plugins,
+            target_trt=target_trt,
+            fmt=fmt,
+            plugin_domains=plugin_domains,
+            fail_on=fail_on,
+        )
         return
 
     if not path.exists():
@@ -271,19 +330,43 @@ def main(
             target_trt=target_trt,
             max_model_size_mb=max_model_size,
             disable_plugins=list(disable_plugins),
+            plugin_domains=list(plugin_domains),
         )
     )
     try:
         report = analyzer.analyze_path(path)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
-    report = _filter_issues(report, severity)
 
-    text = _render(report, fmt, color=output is None, disable_plugins=disable_plugins)
+    if verify_runtime:
+        _attach_runtime_verification(report, path, trtexec_path, verify_timeout)
+
+    display = _filter_issues(report, severity)
+
+    text = _render(display, fmt, color=output is None, disable_plugins=disable_plugins)
     _emit(text, output, force=force)
 
-    if not report.conversion_likely:
-        sys.exit(1)
+    # Exit code comes from the UNfiltered report: --severity only trims the
+    # display, it must not upgrade an unverified model to a passing one.
+    sys.exit(_exit_code(report, fail_on))
+
+
+def _attach_runtime_verification(
+    report: AnalysisReport, path: Path, trtexec_path: str | None, timeout_s: int
+) -> None:
+    """Run trtexec against `path` and fold the outcome into `report`.
+
+    VERIFIED is only ever set on a successful build with no static blocker;
+    a runtime failure or an unavailable trtexec leaves the static verdict
+    untouched (the metadata still records what happened).
+    """
+    from trtcheck.runtime_verify import verify_model
+
+    result = verify_model(path, trtexec_path=trtexec_path, timeout_s=timeout_s)
+    report.runtime_verification = result.to_dict()
+    if result.verified and report.verdict is not Verdict.BLOCKED:
+        report.runtime_verified = True
+    click.echo(f"runtime verification: {result.status.value} -- {result.detail}", err=True)
 
 
 def _run_diff(
@@ -354,7 +437,15 @@ def _run_fix(
     dry_run: bool,
     max_model_size: int,
     disable_plugins: tuple[str, ...] = (),
+    *,
+    target_trt: str = "10.3",
+    fmt: str = "console",
+    plugin_domains: tuple[str, ...] = (),
+    fail_on: str = "blocked",
 ) -> None:
+    """The --fix pipeline: analyze -> fix transactionally -> validate ->
+    re-analyze with the same target -> report resolved/remaining/new findings.
+    """
     if not path.exists():
         raise click.ClickException(f"ONNX file not found: {path}")
     size_mb = path.stat().st_size / (1024 * 1024)
@@ -368,47 +459,116 @@ def _run_fix(
     # who forgets --output is told immediately rather than after the report.
     if not dry_run and output is None:
         raise click.ClickException("--fix requires --output to write the fixed model")
+    if output is not None:
+        if output.resolve() == path.resolve():
+            raise click.ClickException(
+                "refusing to overwrite the input file; choose a different --output"
+            )
+        if not dry_run and output.exists() and not force:
+            raise click.ClickException(
+                f"refusing to overwrite existing file: {output} (use --force)"
+            )
 
     try:
         model = safe_load(path)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
-    # Built-ins first, then discovered plugin fixers (isolated so a broken
-    # plugin can't take down the run), minus anything disabled by name.
+
+    # --fix only operates on structurally valid ONNX: fixers correct TensorRT
+    # incompatibilities, not broken protobufs.
+    try:
+        validate_model(model, level="basic")
+    except Exception as exc:
+        raise click.ClickException(
+            f"input model failed ONNX validation; --fix needs a valid model: {exc}"
+        ) from exc
+
+    analyzer = Analyzer(
+        AnalyzerConfig(
+            target_trt=target_trt,
+            max_model_size_mb=max_model_size,
+            disable_plugins=list(disable_plugins),
+            plugin_domains=list(plugin_domains),
+        )
+    )
+    before = analyzer.analyze_model(model, filename=str(path))
+
+    # Built-ins first, then discovered plugin fixers, minus anything disabled
+    # by name. run_fixers() is transactional: a fixer that crashes or emits an
+    # invalid model has its changes discarded and later fixers still run.
     _, plugin_fixers, _ = load_plugins()
     disabled = set(disable_plugins)
     fixers = [
-        f
-        for f in [*default_fixers(), *(_SafePluginFixer(pf) for pf in plugin_fixers)]
-        if getattr(f, "name", "") not in disabled
+        f for f in [*default_fixers(), *plugin_fixers] if getattr(f, "name", "") not in disabled
     ]
-    new_model, applied = apply_all(model, fixers)
+    outcome = run_fixers(model, fixers)
 
-    if not applied:
-        click.echo("no fixes applied -- model unchanged")
-        return
+    for failure in outcome.failures:
+        click.echo(f"warning: fixer {failure.fixer!r}: {failure.reason}", err=True)
 
-    for fix in applied:
-        click.echo(f"  [{fix.fixer}] {fix.description}")
+    after = analyzer.analyze_model(
+        outcome.model, filename=str(output) if output else f"{path} (fixed)"
+    )
+    before_ids = {i.identity() for i in before.issues}
+    after_ids = {i.identity() for i in after.issues}
+    resolved = [i for i in before.issues if i.identity() not in after_ids]
+    remaining = [i for i in after.issues if i.identity() in before_ids]
+    introduced = [i for i in after.issues if i.identity() not in before_ids]
+
+    if fmt == "json":
+        payload = {
+            "schema_version": REPORT_SCHEMA_VERSION,
+            "target_trt": target_trt,
+            "input": str(path),
+            "output": str(output) if output else None,
+            "dry_run": dry_run,
+            "validation": outcome.validation,
+            "fixes_applied": [f.to_dict() for f in outcome.applied],
+            "fixer_failures": [f.to_dict() for f in outcome.failures],
+            "resolved": [i.to_dict() for i in resolved],
+            "remaining": [i.to_dict() for i in remaining],
+            "introduced": [i.to_dict() for i in introduced],
+            "verdict_before": before.verdict.value,
+            "verdict_after": after.verdict.value,
+        }
+        click.echo(json.dumps(payload, indent=2))
+    else:
+        if not outcome.applied and not outcome.failures:
+            click.echo("no fixes applied -- model unchanged")
+        for fix in outcome.applied:
+            click.echo(f"  [{fix.fixer}] {fix.description}")
+        click.echo(
+            f"\nverdict: {before.verdict.value} -> {after.verdict.value} "
+            f"(TensorRT {target_trt}); "
+            f"{len(resolved)} finding(s) resolved, {len(remaining)} remaining, "
+            f"{len(introduced)} introduced"
+        )
+        for issue in introduced:
+            click.echo(f"  introduced: [{issue.rule_id}] {issue.message}")
+
+    if not outcome.applied:
+        # Nothing changed; never write an output file that is byte-identical
+        # in content but pretends to be "fixed".
+        if not dry_run:
+            click.echo("nothing to write -- no fixer made a change", err=True)
+        sys.exit(_exit_code(after, fail_on))
 
     if dry_run:
-        click.echo(f"\n{len(applied)} fix(es) would be applied (dry run).")
-        return
+        if fmt != "json":
+            click.echo(f"\n{len(outcome.applied)} fix(es) would be applied (dry run).")
+        sys.exit(_exit_code(after, fail_on))
 
-    if output is None:  # unreachable: guarded above, but keep mypy + -O happy
-        raise click.ClickException("--fix requires --output to write the fixed model")
-    if output.resolve() == path.resolve():
-        raise click.ClickException(
-            "refusing to overwrite the input file; choose a different --output"
-        )
-    if output.exists() and not force:
-        raise click.ClickException(f"refusing to overwrite existing file: {output} (use --force)")
+    assert output is not None  # guarded above
+    # run_fixers validated every committed candidate; validate once more at
+    # the write boundary as a belt-and-braces invariant.
     try:
-        onnx.checker.check_model(new_model)
-    except Exception as exc:  # onnx ValidationError et al.
+        validate_model(outcome.model, level=outcome.validation)
+    except Exception as exc:
         raise click.ClickException(f"applying fixes produced an invalid ONNX model: {exc}") from exc
-    onnx.save(new_model, str(output))
-    click.echo(f"\n{len(applied)} fix(es) applied. Wrote {output}.")
+    onnx.save(outcome.model, str(output))
+    if fmt != "json":
+        click.echo(f"\n{len(outcome.applied)} fix(es) applied. Wrote {output}.")
+    sys.exit(_exit_code(after, fail_on))
 
 
 def _print_plugin_listing(target_trt: str, max_model_size: int, disable_plugins: list[str]) -> None:

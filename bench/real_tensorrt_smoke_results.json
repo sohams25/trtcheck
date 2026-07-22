@@ -1,0 +1,187 @@
+{
+  "environment": {
+    "date": "2026-07-22",
+    "host_os": "Zorin OS 17.3 (Ubuntu 22.04 base), Linux 6.8.0-106-generic x86_64",
+    "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU (6 GB)",
+    "nvidia_driver": "580.126.20",
+    "container_image": "nvcr.io/nvidia/tensorrt:24.08-py3",
+    "image_digest": "sha256:9507e5f248fc61a5b2c985ce6e386ecf2576c3d96112ceb38cf88b240d4ca072",
+    "tensorrt": "10.3.0",
+    "gpu_access": "manual passthrough (--device /dev/nvidia* + RO driver-lib mounts); no host changes",
+    "trtcheck_wheel": "trtcheck-1.0.0-py3-none-any.whl (installed, non-editable)",
+    "scope_note": "bounded smoke of the verification integration and selected cases, not universal model compatibility"
+  },
+  "generated_by": "scripts/real_tensorrt_smoke.py",
+  "tensorrt_version_line": "TensorRT v100300",
+  "target_trt": "10.3",
+  "reshape_int64_fixer_refusal": {
+    "fixes_applied": []
+  },
+  "models": [
+    {
+      "name": "clean_minimal",
+      "model": "clean_minimal.onnx",
+      "expected_direct_outcome": "build_success",
+      "static_verdict": "likely",
+      "static_rule_ids": [],
+      "verify_runtime": {
+        "status": "success",
+        "verdict_after": "verified",
+        "runtime_verified": true,
+        "elapsed_s": 5.61
+      },
+      "direct_trtexec": {
+        "outcome": "build_success",
+        "returncode": 0,
+        "elapsed_s": 5.39,
+        "diagnostic": "[07/22/2026-10:21:59] [W] * GPU compute time is unstable, with coefficient of variance = 59.0572%.\n[07/22/2026-10:21:59] [W]   If not already in use, locking GPU clock frequency or adding --useSpinWait may improve the stability.\n"
+      },
+      "wrapper_agrees_with_direct": true,
+      "matched_expectation": true
+    },
+    {
+      "name": "squeezenet1_1_public",
+      "model": "squeezenet1_1.onnx",
+      "expected_direct_outcome": "build_success",
+      "static_verdict": "likely",
+      "static_rule_ids": [
+        "TRT-DTYPE-INT64-WEIGHTS",
+        "TRT-OPSET-OLD"
+      ],
+      "verify_runtime": {
+        "status": "success",
+        "verdict_after": "verified",
+        "runtime_verified": true,
+        "elapsed_s": 15.31
+      },
+      "direct_trtexec": {
+        "outcome": "build_success",
+        "returncode": 0,
+        "elapsed_s": 15.13,
+        "diagnostic": "[07/22/2026-10:22:30] [W] * GPU compute time is unstable, with coefficient of variance = 8.79046%.\n[07/22/2026-10:22:30] [W]   If not already in use, locking GPU clock frequency or adding --useSpinWait may improve the stability.\n"
+      },
+      "wrapper_agrees_with_direct": true,
+      "matched_expectation": true
+    },
+    {
+      "name": "sequence_empty",
+      "model": "sequence_empty.onnx",
+      "expected_direct_outcome": "parser_failure",
+      "static_verdict": "blocked",
+      "static_rule_ids": [
+        "TRT-DTYPE-INT64-WEIGHTS",
+        "TRT-OP-UNSUPPORTED"
+      ],
+      "verify_runtime": {
+        "status": "parser_failure",
+        "verdict_after": "blocked",
+        "runtime_verified": false,
+        "elapsed_s": 2.25
+      },
+      "direct_trtexec": {
+        "outcome": "parser_failure",
+        "returncode": 1,
+        "elapsed_s": 2.02,
+        "diagnostic": "10:22:34] [E] [TRT] ModelImporter.cpp:951: --- End node ---\n[07/22/2026-10:22:34] [E] [TRT] ModelImporter.cpp:954: ERROR: onnxOpCheckers.cpp:981 In function checkSequenceAt:\n[8] false\n[07/22/2026-10:22:34] [E] Failed to parse onnx file\n[07/22/2026-10:22:34] [E] Parsing model failed\n[07/22/2026-10:22:34] [E] Failed to create engine from model or file.\n[07/22/2026-10:22:34] [E] Engine set up failed\n"
+      },
+      "wrapper_agrees_with_direct": true,
+      "matched_expectation": true
+    },
+    {
+      "name": "fully_dynamic",
+      "model": "fully_dynamic.onnx",
+      "expected_direct_outcome": "build_success",
+      "static_verdict": "unverified",
+      "static_rule_ids": [
+        "TRT-SHAPE-PROFILE-MISSING"
+      ],
+      "verify_runtime": {
+        "status": "success",
+        "verdict_after": "verified",
+        "runtime_verified": true,
+        "elapsed_s": 5.55
+      },
+      "direct_trtexec": {
+        "outcome": "build_success",
+        "returncode": 0,
+        "elapsed_s": 5.39,
+        "diagnostic": "[07/22/2026-10:22:42] [W] Dynamic dimensions required for input: input, but no shapes were provided. Automatically overriding shape to: 1x1x1x1\n[07/22/2026-10:22:45] [W] * GPU compute time is unstable, with coefficient of variance = 79.5852%.\n[07/22/2026-10:22:45] [W]   If not already in use, locking GPU clock frequency or adding --useSpinWait may improve the stability.\n"
+      },
+      "wrapper_agrees_with_direct": true,
+      "matched_expectation": true,
+      "direct_trtexec_with_profile": {
+        "outcome": "build_success",
+        "returncode": 0,
+        "elapsed_s": 5.36,
+        "profile": "--minShapes=input:1x1x8x8 --optShapes=input:1x3x64x64 --maxShapes=input:2x3x128x128"
+      }
+    },
+    {
+      "name": "custom_domain",
+      "model": "custom_domain.onnx",
+      "expected_direct_outcome": "parser_failure",
+      "static_verdict": "unverified",
+      "static_rule_ids": [
+        "TRT-OP-CUSTOM-DOMAIN"
+      ],
+      "verify_runtime": {
+        "status": "parser_failure",
+        "verdict_after": "unverified",
+        "runtime_verified": false,
+        "elapsed_s": 2.23
+      },
+      "direct_trtexec": {
+        "outcome": "parser_failure",
+        "returncode": 1,
+        "elapsed_s": 2.07,
+        "diagnostic": "] ModelImporter.cpp:954: ERROR: onnxOpCheckers.cpp:781 In function checkFallbackPluginImporter:\n[6] creator && \"Plugin not found, are the plugin name, version, and namespace correct?\"\n[07/22/2026-10:22:55] [E] Failed to parse onnx file\n[07/22/2026-10:22:55] [E] Parsing model failed\n[07/22/2026-10:22:55] [E] Failed to create engine from model or file.\n[07/22/2026-10:22:55] [E] Engine set up failed\n"
+      },
+      "wrapper_agrees_with_direct": true,
+      "matched_expectation": true
+    },
+    {
+      "name": "uint8_fixed_via_fix",
+      "model": "uint8_fixed.onnx",
+      "expected_direct_outcome": "build_success",
+      "static_verdict": "likely",
+      "static_rule_ids": [],
+      "verify_runtime": {
+        "status": "success",
+        "verdict_after": "verified",
+        "runtime_verified": true,
+        "elapsed_s": 6.43
+      },
+      "direct_trtexec": {
+        "outcome": "build_success",
+        "returncode": 0,
+        "elapsed_s": 6.4,
+        "diagnostic": "vice transfers for the inputs rather than GPU Compute and the GPU may be under-utilized.\n[07/22/2026-10:23:08] [W]   Add --noDataTransfers flag to disable data transfers.\n[07/22/2026-10:23:08] [W] * GPU compute time is unstable, with coefficient of variance = 95.7458%.\n[07/22/2026-10:23:08] [W]   If not already in use, locking GPU clock frequency or adding --useSpinWait may improve the stability.\n"
+      },
+      "wrapper_agrees_with_direct": true,
+      "matched_expectation": true
+    },
+    {
+      "name": "reshape_int64_shape",
+      "model": "reshape_int64_shape.onnx",
+      "expected_direct_outcome": "build_success",
+      "static_verdict": "likely",
+      "static_rule_ids": [
+        "TRT-DTYPE-INT64-WEIGHTS"
+      ],
+      "verify_runtime": {
+        "status": "success",
+        "verdict_after": "verified",
+        "runtime_verified": true,
+        "elapsed_s": 5.45
+      },
+      "direct_trtexec": {
+        "outcome": "build_success",
+        "returncode": 0,
+        "elapsed_s": 5.18,
+        "diagnostic": "[07/22/2026-10:23:19] [W] * GPU compute time is unstable, with coefficient of variance = 66.0441%.\n[07/22/2026-10:23:19] [W]   If not already in use, locking GPU clock frequency or adding --useSpinWait may improve the stability.\n"
+      },
+      "wrapper_agrees_with_direct": true,
+      "matched_expectation": true
+    }
+  ]
+}

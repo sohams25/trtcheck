@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img" aria-label="Animated terminal for trtcheck: a run on model.onnx returns CONVERSION WILL FAIL for a UINT8 input; a fix run writes fixed.onnx; a re-run returns LIKELY TO CONVERT with zero findings.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img" aria-label="Animated terminal for trtcheck: a run on model.onnx returns CONVERSION BLOCKED for a UINT8 input; a fix run writes fixed.onnx; a re-run returns NO KNOWN BLOCKERS with zero findings.">
   <title>trtcheck demo</title>
-  <desc>A ten-second looping terminal session in three beats. First, trtcheck model.onnx returns a red CONVERSION WILL FAIL verdict and a one-row table describing a UINT8 graph input. Second, trtcheck --fix promotes the input to FLOAT and drops a redundant Cast, writing fixed.onnx. Third, a re-run returns a green LIKELY TO CONVERT verdict with zero critical, warning, and info findings.</desc>
+  <desc>A ten-second looping terminal session in three beats. First, trtcheck model.onnx returns a red CONVERSION BLOCKED verdict and a one-row table describing a UINT8 graph input. Second, trtcheck --fix promotes the input to FLOAT and drops a redundant Cast, writing fixed.onnx. Third, a re-run returns a green NO KNOWN BLOCKERS verdict with zero critical, warning, and info findings.</desc>
 
   <g font-family="ui-monospace, Menlo, Consolas, monospace">
 
@@ -24,7 +24,7 @@
       <g opacity="0">
         <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.10;0.14;0.42;0.46;1" dur="10s" repeatCount="indefinite"/>
         <rect x="40" y="104" width="316" height="40" rx="6" fill="#241618" stroke="#6e302e" stroke-width="1"/>
-        <text x="58" y="131" font-size="22" font-weight="600" letter-spacing="0.5" fill="#e5544e">CONVERSION WILL FAIL</text>
+        <text x="58" y="131" font-size="22" font-weight="600" letter-spacing="0.5" fill="#e5544e">CONVERSION BLOCKED</text>
         <text x="40" y="176" font-size="20" fill="#868f9b">file: model.onnx</text>
         <text x="40" y="202" font-size="20" fill="#868f9b">opset: 17 &#183; nodes: 2 &#183; 1 critical, 0 warning</text>
 
@@ -82,7 +82,7 @@
       <g opacity="0">
         <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.80;0.84;0.97;1" dur="10s" repeatCount="indefinite"/>
         <rect x="40" y="110" width="272" height="40" rx="6" fill="#152018" stroke="#2f5f43" stroke-width="1"/>
-        <text x="58" y="137" font-size="22" font-weight="600" letter-spacing="0.5" fill="#52aa6e">LIKELY TO CONVERT</text>
+        <text x="58" y="137" font-size="22" font-weight="600" letter-spacing="0.5" fill="#52aa6e">NO KNOWN BLOCKERS</text>
         <text x="40" y="182" font-size="20" fill="#868f9b">0 critical &#183; 0 warning &#183; 0 info</text>
       </g>
     </g>

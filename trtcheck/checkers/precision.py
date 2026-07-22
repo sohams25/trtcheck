@@ -90,7 +90,7 @@ class PrecisionChecker:
         issues: list[Issue] = []
         # Walk subgraph initializers too -- an INT64/DOUBLE weight buried in an
         # If/Loop/Scan body is just as much of a conversion problem.
-        for init, _owner in iter_initializers(graph):
+        for init, owner in iter_initializers(graph):
             mapping = _INIT_DTYPES.get(init.data_type)
             if mapping is None:
                 continue
@@ -101,6 +101,7 @@ class PrecisionChecker:
                     node_name=init.name,
                     operator="Initializer",
                     prefix=f"Initializer '{init.name}' has dtype {token}",
+                    graph_scope=owner.name,
                 )
             )
         return issues

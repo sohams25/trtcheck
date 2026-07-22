@@ -331,5 +331,5 @@ class TestHTMLDiff:
         after = self._build("after.onnx", with_issues=False)  # 0 critical -> pass
         out = HTMLReporter().render_diff(before, after)
         # Each side surfaces its verdict.
-        assert "conversion will fail" in out.lower()
-        assert "likely to convert" in out.lower()
+        assert "conversion blocked" in out.lower()
+        assert "no known blocker" in out.lower()

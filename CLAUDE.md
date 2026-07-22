@@ -349,12 +349,17 @@ trtcheck model.onnx --format json --output report.json
 trtcheck model.onnx --format html --output report.html
 
 # Filter by severity
-trtcheck model.onnx --severity critical       # Only show blockers
+trtcheck model.onnx --severity critical       # Only show blockers (display-only; exit code uses the full report)
 trtcheck model.onnx --severity warning        # Critical + warnings
 
 
 # Diff two ONNX files (before/after fix)
 trtcheck model_v1.onnx model_v2.onnx --diff
+
+# Strict CI gate / plugin domains / runtime verification
+trtcheck model.onnx --fail-on unverified
+trtcheck model.onnx --plugin-domain com.example
+trtcheck model.onnx --verify-runtime          # optional; needs trtexec
 
 # Version info
 trtcheck --version
@@ -366,7 +371,7 @@ trtcheck --version
 ╔══════════════════════════════════════════════════════════════════════╗
 ║ trtcheck Report                                                       ║
 ║ model.onnx → TensorRT 10.3                                           ║
-║ Status: CONVERSION WILL FAIL (1 critical, 2 warnings)              ║
+║ Status: CONVERSION BLOCKED (1 critical, 2 warnings)                ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
 ┌──────────┬────────┬─────────────┬────────────────────────┬─────────────────────────────┐

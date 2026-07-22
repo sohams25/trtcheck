@@ -22,9 +22,18 @@
       "trtcheck": "fail"
     },
     "bundled_fully_dynamic": {
-      "trtcheck": "convert"
+      "trtcheck": "unverified"
     },
     "bundled_clean_minimal": {
+      "trtcheck": "convert"
+    },
+    "bundled_topk_unsorted": {
+      "trtcheck": "fail"
+    },
+    "bundled_custom_domain": {
+      "trtcheck": "unverified"
+    },
+    "bundled_reshape_int64_shape": {
       "trtcheck": "convert"
     }
   }

@@ -5,7 +5,15 @@ from __future__ import annotations
 import html
 
 from trtcheck._text import strip_unsafe
-from trtcheck.types import AnalysisReport, Severity
+from trtcheck.types import AnalysisReport, Severity, Verdict
+
+# Verdict -> (css class, headline). Conservative wording on purpose.
+_VERDICT_HTML = {
+    Verdict.BLOCKED: ("fail", "Conversion blocked"),
+    Verdict.UNVERIFIED: ("warn", "Unverified &mdash; unresolved conditions remain"),
+    Verdict.LIKELY: ("pass", "Likely &mdash; no known blocker (static analysis)"),
+    Verdict.VERIFIED: ("pass", "Verified &mdash; TensorRT runtime build succeeded"),
+}
 
 
 def _safe(text: str) -> str:
@@ -50,9 +58,11 @@ h1 { font-size: 1.5rem; margin: 0 0 1rem 0; }
   border: 1px solid var(--border);
 }
 .verdict.pass { background: rgba(78, 201, 176, 0.08); border-color: var(--ok); }
+.verdict.warn { background: rgba(255, 180, 84, 0.08); border-color: var(--warn); }
 .verdict.fail { background: rgba(255, 92, 92, 0.08); border-color: var(--crit); }
 .verdict h2 { margin: 0 0 0.5rem 0; font-size: 1.25rem; }
 .verdict.pass h2 { color: var(--ok); }
+.verdict.warn h2 { color: var(--warn); }
 .verdict.fail h2 { color: var(--crit); }
 .meta { color: var(--muted); font-size: 0.9rem; }
 .meta span + span::before { content: " · "; }
@@ -133,8 +143,7 @@ class HTMLReporter:
         --diff mode. The CSS is shared at the document level; render() injects
         it once.
         """
-        verdict_class = "pass" if report.conversion_likely else "fail"
-        verdict_title = "Likely to convert" if report.conversion_likely else "Conversion will fail"
+        verdict_class, verdict_title = _VERDICT_HTML[report.verdict]
         parts: list[str] = []
         parts.append('<div class="container">')
         parts.append("<h1>trtcheck report</h1>")
@@ -142,6 +151,8 @@ class HTMLReporter:
         parts.append(f"<h2>{verdict_title}</h2>")
         parts.append('<div class="meta">')
         parts.append(f"<span><code>{_safe(report.filename)}</code></span>")
+        if report.target_trt:
+            parts.append(f"<span>target TensorRT {_safe(report.target_trt)}</span>")
         parts.append(f"<span>opset {report.opset_version}</span>")
         parts.append(f"<span>{report.total_nodes} nodes</span>")
         parts.append(f"<span>{report.critical_count} critical</span>")
@@ -155,7 +166,7 @@ class HTMLReporter:
             parts.append("<table>")
             parts.append(
                 "<thead><tr>"
-                "<th>Severity</th><th>Node</th><th>Operator</th>"
+                "<th>Severity</th><th>Rule</th><th>Node</th><th>Operator</th>"
                 "<th>Issue</th><th>Fix</th><th>Docs</th>"
                 "</tr></thead><tbody>"
             )
@@ -174,6 +185,7 @@ class HTMLReporter:
                 parts.append(
                     "<tr>"
                     f'<td><span class="sev {sev}">{sev.upper()}</span></td>'
+                    f"<td><code>{_safe(issue.rule_id)}</code></td>"
                     f"<td><code>{_safe(issue.node_name)}</code></td>"
                     f"<td><code>{_safe(issue.operator)}</code></td>"
                     f"<td>{_safe(issue.message)}</td>"

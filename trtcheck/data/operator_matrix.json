@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0",
-  "last_updated": "2026-05-21",
+  "schema_version": "2.0",
+  "last_updated": "2026-07-22",
   "target_trt_versions": [
     "8.0",
     "8.6",
@@ -145,6 +145,15 @@
         "10.0": "supported",
         "10.3": "supported"
       }
+    },
+    "Clip": {
+      "support": {
+        "8.0": "unknown",
+        "8.6": "unknown",
+        "10.0": "supported",
+        "10.3": "supported"
+      },
+      "notes": "Supported in TRT 10.x (FP32/FP16/BF16) per onnx-tensorrt docs, retrieved 2026-07-22. 8.x status not verified here, left unknown."
     },
     "LogSoftmax": {
       "support": {
@@ -576,9 +585,80 @@
         "10.0": "supported",
         "10.3": "supported"
       },
-      "notes": "Only nearest and linear modes pre-10.0. Cubic added in 10.0.",
+      "notes": "Only nearest and linear modes; cubic is not supported (onnx-tensorrt docs, retrieved 2026-07-22).",
       "limitations": [
-        "antialias attribute not supported before TRT 10.0."
+        "Antialiasing (antialias=1) is not supported.",
+        "coordinate_transformation_mode limited to half_pixel, pytorch_half_pixel, tf_half_pixel_for_nn, asymmetric, align_corners."
+      ],
+      "conditions": [
+        {
+          "id": "resize-mode",
+          "applies_to": [
+            "10.0",
+            "10.3"
+          ],
+          "kind": "attribute_allowed",
+          "attribute": "mode",
+          "allowed_values": [
+            "nearest",
+            "linear"
+          ],
+          "default_ok": true,
+          "severity": "critical",
+          "message": "TensorRT supports only Resize modes 'nearest' and 'linear' (cubic is rejected).",
+          "remediation": "Re-export with mode=nearest or mode=linear, or implement cubic resize as a plugin.",
+          "evidence": {
+            "status": "official_docs",
+            "source": "https://github.com/onnx/onnx-tensorrt/blob/main/docs/operators.md",
+            "retrieved": "2026-07-22"
+          }
+        },
+        {
+          "id": "resize-coord-transform",
+          "applies_to": [
+            "10.0",
+            "10.3"
+          ],
+          "kind": "attribute_allowed",
+          "attribute": "coordinate_transformation_mode",
+          "allowed_values": [
+            "half_pixel",
+            "pytorch_half_pixel",
+            "tf_half_pixel_for_nn",
+            "asymmetric",
+            "align_corners"
+          ],
+          "default_ok": true,
+          "severity": "critical",
+          "message": "TensorRT supports Resize coordinate_transformation_mode in {half_pixel, pytorch_half_pixel, tf_half_pixel_for_nn, asymmetric, align_corners} only.",
+          "remediation": "Re-export with a supported coordinate_transformation_mode.",
+          "evidence": {
+            "status": "official_docs",
+            "source": "https://github.com/onnx/onnx-tensorrt/blob/main/docs/operators.md",
+            "retrieved": "2026-07-22"
+          }
+        },
+        {
+          "id": "resize-no-antialias",
+          "applies_to": [
+            "10.0",
+            "10.3"
+          ],
+          "kind": "attribute_allowed",
+          "attribute": "antialias",
+          "allowed_values": [
+            0
+          ],
+          "default_ok": true,
+          "severity": "critical",
+          "message": "TensorRT does not support antialiased Resize (antialias=1).",
+          "remediation": "Re-export with antialias=0.",
+          "evidence": {
+            "status": "official_docs",
+            "source": "https://github.com/onnx/onnx-tensorrt/blob/main/docs/operators.md",
+            "retrieved": "2026-07-22"
+          }
+        }
       ]
     },
     "Upsample": {
@@ -754,7 +834,48 @@
         "8.6": "supported",
         "10.0": "supported",
         "10.3": "supported"
-      }
+      },
+      "conditions": [
+        {
+          "id": "topk-sorted-required",
+          "applies_to": [
+            "10.0",
+            "10.3"
+          ],
+          "kind": "attribute_allowed",
+          "attribute": "sorted",
+          "allowed_values": [
+            1
+          ],
+          "default_ok": true,
+          "severity": "critical",
+          "message": "TensorRT requires TopK attribute sorted=1 (ONNX default). sorted=0 is rejected.",
+          "remediation": "Re-export with sorted=1, or sort outside the model.",
+          "evidence": {
+            "status": "official_docs",
+            "source": "https://github.com/onnx/onnx-tensorrt/blob/main/docs/operators.md",
+            "retrieved": "2026-07-22"
+          }
+        },
+        {
+          "id": "topk-k-max-3840",
+          "applies_to": [
+            "10.0",
+            "10.3"
+          ],
+          "kind": "constant_input_max",
+          "input_index": 1,
+          "max_value": 3839,
+          "severity": "critical",
+          "message": "TensorRT requires the TopK K input to be less than 3840.",
+          "remediation": "Reduce K below 3840, or restructure the selection into chunks.",
+          "evidence": {
+            "status": "official_docs",
+            "source": "https://github.com/onnx/onnx-tensorrt/blob/main/docs/operators.md",
+            "retrieved": "2026-07-22"
+          }
+        }
+      ]
     },
     "NonZero": {
       "support": {

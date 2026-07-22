@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" role="img" aria-label="trtcheck: static pre-flight checks for ONNX to TensorRT conversion. A terminal panel shows a red CONVERSION WILL FAIL verdict with 1 critical finding." font-family="ui-monospace, Menlo, Consolas, monospace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" role="img" aria-label="trtcheck: static pre-flight checks for ONNX to TensorRT conversion. A terminal panel shows a red CONVERSION BLOCKED verdict with 1 critical finding." font-family="ui-monospace, Menlo, Consolas, monospace">
   <title>trtcheck</title>
-  <desc>Masthead for trtcheck. The wordmark, the line "Static pre-flight checks for ONNX to TensorRT conversion.", and a terminal panel running trtcheck on model.onnx: a red CONVERSION WILL FAIL verdict beside the opset, node count, and finding counts.</desc>
+  <desc>Masthead for trtcheck. The wordmark, the line "Static pre-flight checks for ONNX to TensorRT conversion.", and a terminal panel running trtcheck on model.onnx: a red CONVERSION BLOCKED verdict beside the opset, node count, and finding counts.</desc>
 
   <rect width="1280" height="560" fill="#15171c"/>
 
@@ -20,7 +20,7 @@
   <text x="136" y="352" font-size="26" fill="#e7eaed"><tspan fill="#5c9aa8">$</tspan> trtcheck model.onnx</text>
 
   <rect x="136" y="386" width="370" height="52" rx="8" fill="#241618" stroke="#6e302e" stroke-width="1"/>
-  <text x="160" y="420" font-size="26" font-weight="600" letter-spacing="0.5" fill="#e5544e">CONVERSION WILL FAIL</text>
+  <text x="160" y="420" font-size="26" font-weight="600" letter-spacing="0.5" fill="#e5544e">CONVERSION BLOCKED</text>
 
   <text x="552" y="404" font-size="22" fill="#868f9b">file: model.onnx</text>
   <text x="552" y="434" font-size="22" fill="#868f9b">opset: 17 &#183; nodes: 2 &#183; 1 critical, 0 warning</text>

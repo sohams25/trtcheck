@@ -202,3 +202,20 @@ The v1.0 release blocks on all of:
   installable via `pip install -e .` and shows up in `--list-plugins`.
 - The CHANGELOG calls out the public API surface and the migration
   story.
+
+## Schema 2.0 compatibility (unreleased)
+
+- `Issue` gained `rule_id`, `confidence`, `verify_required`, `target_trt`,
+  and `graph_scope` — all with defaults, so existing plugin checkers keep
+  constructing `Issue` unchanged. Give your findings a namespaced rule id
+  (e.g. `MYPLUGIN-...`) so CI consumers can filter them; the `TRT-` prefix
+  is reserved for built-ins.
+- Plugin **fixers** now run inside the transactional pipeline: you receive
+  a private candidate copy of the model; your changes are kept only if you
+  return a well-formed `list[FixApplied]` and the candidate passes ONNX
+  validation. Raising an exception can no longer corrupt the output model
+  — but it will be reported to the user, so still refuse rather than raise
+  where you can. Tracebacks are only shown with `TRTCHECK_DEBUG=1`.
+- A crashed plugin **checker** now surfaces as a `TRT-PLUGIN-CHECKER-ERROR`
+  finding with `verify_required=True`, which makes the report verdict
+  `unverified` — missing coverage is visible, not silent.
