@@ -179,7 +179,7 @@ corpus and the failure cases are synthetic, so read this as "the checks
 do what they claim on known patterns", not as a field-accuracy estimate.
 For the scorecard corpus, ground truth is documented TRT behavior, not a
 live `trtexec` run.
-[`SCORECARD.md`](SCORECARD.md) has the per-model table, the methodology,
+[`docs/evidence/scorecard.md`](docs/evidence/scorecard.md) has the per-model table, the methodology,
 and what each run caught (the first run's false negative became the
 `loop_runtime_trip_count` critical check; this run exposed a `Clip`
 coverage gap in the matrix). To grow the corpus, add a model with a
@@ -204,7 +204,7 @@ remains useful because production profiles should be supplied
 deliberately.
 
 Full commands, environment details, and per-model results:
-[`REAL_TENSORRT_VALIDATION_REPORT.md`](REAL_TENSORRT_VALIDATION_REPORT.md).
+[`docs/evidence/tensorrt-10.3-smoke.md`](docs/evidence/tensorrt-10.3-smoke.md).
 
 ## How it compares
 

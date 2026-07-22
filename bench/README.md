@@ -54,8 +54,8 @@ python bench/predict.py
 python bench/score.py --outcomes bench/outcomes.json
 ```
 
-The latest published run lives in [`SCORECARD.md`](../SCORECARD.md) at
-the repo root, with the raw predictions committed as
+The latest published run lives in
+[`docs/evidence/scorecard.md`](../docs/evidence/scorecard.md), with the raw predictions committed as
 `bench/outcomes.json`.
 
 ## What the score means

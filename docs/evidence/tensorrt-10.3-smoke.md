@@ -1,11 +1,8 @@
-# Real TensorRT validation report
+# TensorRT 10.3 runtime smoke evidence
 
-Date: 2026-07-22. Shipped in v1.1.0 via PR #23 (this run supersedes the
-earlier same-day BLOCKED host-level attempt, commit `7527404`).
+Run date: 2026-07-22, supporting the v1.1.0 runtime-verification claims.
 
-## Status: **COMPLETE — real runtime smoke passed**
-
-Real runtime integration was smoke-tested on **TensorRT 10.3.0** using 7
+Runtime integration was smoke-tested on **TensorRT 10.3.0** using 7
 representative generated/public fixtures inside the official NGC
 container. This validates the verification integration and the selected
 cases, **not universal model compatibility**.
@@ -55,7 +52,7 @@ packages/configuration were installed or changed** (nothing to roll back).
 ## 2. Corpus and results
 
 Runner: `scripts/real-smoke-container.sh` → `scripts/real_tensorrt_smoke.py`.
-Machine-readable results: [`bench/real_tensorrt_smoke_results.json`](bench/real_tensorrt_smoke_results.json).
+Machine-readable results: [`bench/real_tensorrt_smoke_results.json`](../../bench/real_tensorrt_smoke_results.json).
 Per model: static analysis (target 10.3), `trtcheck --verify-runtime
 --trtexec <real>`, and an **independent direct trtexec run**, all with
 timeouts and bounded output capture.
@@ -144,10 +141,8 @@ schema 2.0 with rule ids throughout.
   by the wrapper's trap.
 - Temporary containers were `--rm` (none remain).
 - `.gitignore` covers `*.engine`, `*.plan`, `*.trt`.
-- The NGC image (14.6 GB) is retained in the local Docker cache — 150+ GB
-  remain free. Optional removal: `docker rmi nvcr.io/nvidia/tensorrt:24.08-py3`.
-- Unrelated images/containers untouched. No host packages or
-  configuration were changed (nothing to back up or roll back).
+- No host packages or configuration were changed (nothing to back up or
+  roll back).
 
 ## 7. Limitations
 
@@ -175,11 +170,3 @@ scripts/real-smoke-container.sh       # runs the whole corpus, prints the summar
 On a host with the NVIDIA Container Toolkit the script uses `--gpus all`
 automatically; otherwise it falls back to the no-root manual passthrough
 described above.
-
-## 9. Release recommendation
-
-The one named external check from `RELEASE_READINESS_REPORT.md` — a real
-trtexec smoke with at least one genuine success and one genuine failure —
-has now passed, with full wrapper/direct agreement, using the installed
-wheel. **Recommendation: release v1.1.0** (after the routine version-bump
-and changelog-roll checklist in `RELEASE_NOTES_DRAFT.md`).

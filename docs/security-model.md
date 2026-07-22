@@ -1,8 +1,8 @@
-# Security review — release-readiness pass (2026-07-22)
+# Security model
 
-Scope: the v1.1.0 release-readiness state of the repository, all tracked files
-plus build output. This is a project self-review, not an external audit.
-Vulnerability reporting instructions live in [SECURITY.md](SECURITY.md).
+Scope: the v1.1.0 state of the repository, all tracked files plus build
+output. This is a project self-review, not an external audit.
+Vulnerability reporting instructions live in [SECURITY.md](../SECURITY.md).
 
 ## Threat model in one paragraph
 
@@ -28,12 +28,6 @@ the user names.
 | Plugin trust boundary | Entry-point plugins are semi-trusted *code the user installed* — loading a plugin is arbitrary code execution by design, same as any pip install. Within that boundary: plugin checker crashes are contained and surfaced as findings (missing coverage is visible), plugin fixers run inside the transactional pipeline and cannot corrupt output, plugin tracebacks are hidden unless `TRTCHECK_DEBUG=1`, and unnamespaced plugin findings get a `PLUGIN-<name>` rule-id fallback. |
 | Dependency ranges | `onnx>=1.15,<2.0`, `click>=8.1,<9.0`, `rich>=13.5,<16.0` — upper-bounded majors, no known-vulnerable pins. Dev-only extras are not installed with the package. |
 
-## Fixes made during this pass
-
-- None security-critical. (The transactional-fixer and verdict-honesty
-  fixes on this branch are correctness/robustness work; they also shrink
-  the blast radius of a malicious plugin fixer.)
-
 ## Accepted risks
 
 - Installing a third-party trtcheck plugin executes its code at import
@@ -46,4 +40,4 @@ the user names.
 
 ## Reporting
 
-See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
+See [SECURITY.md](../SECURITY.md) for how to report a vulnerability.
