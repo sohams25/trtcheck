@@ -176,6 +176,18 @@ def run_fixers(
             # Fixer claims it changed nothing: discard the candidate anyway
             # (an undeclared mutation must not survive).
             continue
+        if candidate.SerializeToString() == current.SerializeToString():
+            # Fixer claims fixes but changed nothing: refusing keeps the
+            # applied-fixes list truthful (a --fix report must never list a
+            # change that is not in the output model).
+            failures.append(
+                FixFailure(
+                    name,
+                    f"reported {len(fixes)} fix(es) but did not modify the model; "
+                    "records discarded",
+                )
+            )
+            continue
         if validate:
             try:
                 validate_model(candidate, level=level)

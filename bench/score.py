@@ -66,6 +66,24 @@ class ScoreResult:
     def unverified_total(self) -> int:
         return len(self.unverified_on_fail) + len(self.unverified_on_convert)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Machine-readable summary (written by --json)."""
+        return {
+            "true_positive": self.true_positive,
+            "false_positive": self.false_positive,
+            "true_negative": self.true_negative,
+            "false_negative": self.false_negative,
+            "scored": self.total,
+            "blocker_precision": self.precision,
+            "blocker_recall": self.recall,
+            "blocker_f1": self.f1,
+            "unverified_on_fail": list(self.unverified_on_fail),
+            "unverified_on_convert": list(self.unverified_on_convert),
+            "unverified_coverage": self.unverified_coverage,
+            "skipped": list(self.skipped),
+            "drift": list(self.drift),
+        }
+
     @property
     def unverified_coverage(self) -> float:
         """Fraction of all classified-or-unverified entries trtcheck declined
@@ -193,6 +211,13 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="Path to outcomes.json produced by the validation runner.",
     )
+    parser.add_argument(
+        "--json",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help="Also write the summary as machine-readable JSON to PATH.",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -210,6 +235,9 @@ def main(argv: list[str] | None = None) -> int:
 
     result = score(manifest, outcomes)
     print(format_report(result))
+    if args.json is not None:
+        args.json.write_text(json.dumps(result.to_dict(), indent=2) + "\n")
+        print(f"wrote {args.json}")
     return 0
 
 

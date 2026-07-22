@@ -117,9 +117,12 @@ runtime verification: success -- trtexec parsed the model and built an engine
 │ VERIFIED -- TensorRT runtime build succeeded │
 ```
 
-If `trtexec` is missing, times out, or fails, the static verdict is kept and
-the runtime metadata (status, command, version, output tails) is recorded in
-the JSON report under `runtime_verification`.
+If `trtexec` is missing, times out, or cannot be spawned, the static
+verdict is kept. If trtexec *ran and failed* (parser or engine-build
+failure), an otherwise-`likely` report is demoted to `unverified` — runtime
+evidence against the model is never hidden behind a clean static
+prediction. Either way, the metadata (status, command, version, output
+tails) is recorded in the JSON report under `runtime_verification`.
 
 ## JSON schema
 

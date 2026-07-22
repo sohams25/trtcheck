@@ -126,3 +126,20 @@ class TestCliIntegration:
         assert result.exit_code == 0, result.output
         assert '"verdict": "likely"' in result.stdout
         assert '"status": "missing_trtexec"' in result.stdout
+
+    def test_runtime_failure_demotes_likely_to_unverified(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A recorded parser/build failure must not hide behind a clean
+        static prediction: the verdict drops to unverified."""
+        monkeypatch.setattr(runtime_verify.shutil, "which", lambda _: "/usr/bin/trtexec")
+        _patch_run(
+            monkeypatch,
+            _FakeProc(1, stderr="[E] ModelImporter.cpp: Failed to parse ONNX model"),
+        )
+        result = CliRunner().invoke(
+            main, [str(self._clean_path(tmp_path)), "--verify-runtime", "--format", "json"]
+        )
+        assert result.exit_code == 0, result.output
+        assert '"verdict": "unverified"' in result.stdout
+        assert '"status": "parser_failure"' in result.stdout

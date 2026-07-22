@@ -179,3 +179,29 @@ class TestUnverifiedPredictions:
         manifest = _manifest(("a", "fail"))
         with pytest.raises(ValueError):
             score(manifest, {"a": {"trtcheck": "maybe"}})
+
+
+def test_score_to_dict_and_json_flag(tmp_path: Path) -> None:
+    manifest = _manifest(("a", "fail"), ("b", "convert"), ("c", "fail"))
+    outcomes = {
+        "a": {"trtcheck": "fail"},
+        "b": {"trtcheck": "convert"},
+        "c": {"trtcheck": "unverified"},
+    }
+    r = score(manifest, outcomes)
+    d = r.to_dict()
+    assert d["blocker_precision"] == 1.0
+    assert d["blocker_recall"] == 1.0
+    assert d["unverified_on_fail"] == ["c"]
+    assert d["unverified_coverage"] == pytest.approx(1 / 3)
+
+    # CLI round trip
+    mpath = tmp_path / "manifest.yaml"
+    opath = tmp_path / "outcomes.json"
+    jpath = tmp_path / "summary.json"
+    import yaml
+
+    mpath.write_text(yaml.safe_dump({"models": manifest}))
+    opath.write_text(json.dumps({"predictions": outcomes}))
+    assert main(["--manifest", str(mpath), "--outcomes", str(opath), "--json", str(jpath)]) == 0
+    assert json.loads(jpath.read_text())["scored"] == 2

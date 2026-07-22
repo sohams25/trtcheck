@@ -145,3 +145,22 @@ def test_external_data_model_gets_basic_validation(tmp_path, monkeypatch) -> Non
     outcome = run_fixers(model, [DropDropoutFixer()])
     assert outcome.validation == "basic"
     assert [a.fixer for a in outcome.applied] == ["drop_dropout"]
+
+
+class _ClaimsWithoutMutation:
+    """Reports a fix but leaves the model untouched: the record is a lie."""
+
+    name = "claims_without_mutation"
+
+    def fix(self, model: onnx.ModelProto) -> list[FixApplied]:
+        return [FixApplied(fixer=self.name, target="x", description="did nothing")]
+
+
+def test_claimed_fixes_without_mutation_are_rejected() -> None:
+    model = _valid_model()
+    outcome = run_fixers(model, [_ClaimsWithoutMutation(), DropDropoutFixer()])
+    assert all(a.fixer != "claims_without_mutation" for a in outcome.applied)
+    assert [f.fixer for f in outcome.failures] == ["claims_without_mutation"]
+    assert "did not modify" in outcome.failures[0].reason
+    # The honest fixer after it still runs.
+    assert [a.fixer for a in outcome.applied] == ["drop_dropout"]

@@ -41,6 +41,10 @@ BLOCKED  >  UNVERIFIED  >  LIKELY  <  VERIFIED
 - `LIKELY`: no critical, nothing unresolved. Static prediction only.
 - `VERIFIED`: `LIKELY`/`UNVERIFIED` + a successful `trtexec` parse/build
   for the user's actual environment. Only the runtime path sets it.
+- A recorded runtime *failure* (parser or build) demotes an
+  otherwise-`LIKELY` report to `UNVERIFIED`; verification that merely could
+  not run (missing trtexec, timeout, spawn error) leaves the static verdict
+  untouched.
 
 **Invariant:** no operator disappears silently. Every node is either
 classified by the matrix, covered by an explicit uncertainty finding
@@ -86,8 +90,9 @@ versions the evidence actually covers.
 3. A candidate is committed only if the fixer returned well-formed
    `FixApplied` records *and* the candidate passes validation.
 4. Any failure — exception (even after mutating), malformed return,
-   invalid candidate, undeclared mutation — discards the candidate and
-   records a `FixFailure`. Later fixers still run on the last valid state.
+   invalid candidate, undeclared mutation, or *claimed fixes with no actual
+   change* — discards the candidate and records a `FixFailure`. Later
+   fixers still run on the last valid state.
 
 ### Validation levels
 

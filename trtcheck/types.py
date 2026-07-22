@@ -109,9 +109,14 @@ class Issue:
             "graph_scope": self.graph_scope,
         }
 
-    def identity(self) -> tuple[str, str, str]:
-        """Stable identity for diffing reports: (rule_id, node_name, operator)."""
-        return (self.rule_id, self.node_name, self.operator)
+    def identity(self) -> tuple[str, str, str, str]:
+        """Stable identity for diffing reports.
+
+        Includes ``graph_scope`` so two same-named nodes in different
+        subgraphs (legal ONNX: uniqueness is per-graph) never alias in a
+        before/after comparison.
+        """
+        return (self.rule_id, self.node_name, self.operator, self.graph_scope)
 
 
 @dataclass
@@ -153,12 +158,25 @@ class AnalysisReport:
 
     @property
     def verdict(self) -> Verdict:
-        """Four-state verdict derived from the findings (see :class:`Verdict`)."""
+        """Four-state verdict derived from the findings (see :class:`Verdict`).
+
+        Precedence: BLOCKED > VERIFIED > UNVERIFIED > LIKELY. A recorded
+        runtime *failure* (parser or engine build) demotes an otherwise-LIKELY
+        report to UNVERIFIED -- contradictory runtime evidence must never be
+        hidden behind a clean static prediction. Verification that could not
+        run (missing trtexec, timeout, spawn error) leaves the static verdict
+        untouched; its metadata is still in ``runtime_verification``.
+        """
         if self.critical_count > 0:
             return Verdict.BLOCKED
         if self.runtime_verified:
             return Verdict.VERIFIED
         if any(i.verify_required for i in self.issues):
+            return Verdict.UNVERIFIED
+        if self.runtime_verification is not None and self.runtime_verification.get("status") in (
+            "parser_failure",
+            "build_failure",
+        ):
             return Verdict.UNVERIFIED
         return Verdict.LIKELY
 

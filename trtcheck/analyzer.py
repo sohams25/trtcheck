@@ -24,6 +24,12 @@ _BUILTIN_CHECKER_NAMES = frozenset(
 )
 
 
+def _slug(name: str) -> str:
+    """Uppercase A-Z0-9 slug of a plugin name for rule-id fallbacks."""
+    cleaned = "".join(c if c.isalnum() else "-" for c in name.upper()).strip("-")
+    return cleaned or "UNNAMED"
+
+
 def safe_load(path: Path | str) -> onnx.ModelProto:
     """``onnx.load`` with parse failures surfaced as a clean ``ValueError``.
 
@@ -109,7 +115,15 @@ class Analyzer:
                 all_issues.extend(checker.check(model))
                 continue
             try:
-                all_issues.extend(checker.check(model))
+                plugin_issues = checker.check(model)
+                # A plugin finding without a rule id gets a namespaced
+                # fallback so CI filters on rule_id always have something
+                # stable to match, and the plugin origin stays visible.
+                fallback = f"PLUGIN-{_slug(name)}"
+                for issue in plugin_issues:
+                    if not issue.rule_id:
+                        issue.rule_id = fallback
+                all_issues.extend(plugin_issues)
             except Exception as exc:
                 all_issues.append(
                     Issue(

@@ -63,3 +63,40 @@ class TestPluginsModuleSurface:
         from trtcheck.reporters.json import JSONReporter
 
         assert isinstance(JSONReporter(), Reporter)
+
+
+def test_plugin_checker_findings_get_namespaced_rule_id_fallback() -> None:
+    """A plugin finding without a rule_id must not reach the report blank --
+    it gets a PLUGIN-<name> fallback so CI filters always have an id."""
+    import onnx
+    from onnx import TensorProto, helper
+
+    from trtcheck.analyzer import Analyzer, AnalyzerConfig
+    from trtcheck.types import CheckCategory, Issue, Severity
+
+    class NoIdChecker:
+        name = "my checker!"
+
+        def check(self, model: onnx.ModelProto) -> list[Issue]:
+            return [
+                Issue(
+                    severity=Severity.INFO,
+                    category=CheckCategory.GRAPH_STRUCTURE,
+                    node_name="n",
+                    operator="X",
+                    message="plugin finding",
+                    remediation="none",
+                )
+            ]
+
+    analyzer = Analyzer(AnalyzerConfig(discover_entry_point_plugins=False))
+    analyzer.checkers.append(NoIdChecker())
+
+    inp = helper.make_tensor_value_info("x", TensorProto.FLOAT, [1])
+    out = helper.make_tensor_value_info("y", TensorProto.FLOAT, [1])
+    graph = helper.make_graph([helper.make_node("Relu", ["x"], ["y"], name="r")], "m", [inp], [out])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+
+    report = analyzer.analyze_model(model)
+    finding = next(i for i in report.issues if i.message == "plugin finding")
+    assert finding.rule_id == "PLUGIN-MY-CHECKER"

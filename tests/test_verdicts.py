@@ -180,3 +180,98 @@ class TestJsonSchema:
             for issue in report.issues:
                 assert issue.rule_id, f"issue without rule_id: {issue.message}"
                 assert issue.target_trt == "10.3"
+
+
+class TestVerdictPrecedence:
+    """Precedence when multiple conditions coexist:
+    BLOCKED > VERIFIED > UNVERIFIED > LIKELY, with runtime *failures*
+    demoting an otherwise-clean report to UNVERIFIED."""
+
+    def _report(self, **kwargs) -> AnalysisReport:
+        base = dict(
+            filename="f", onnx_ir_version="8", opset_version=17, producer="p", total_nodes=1
+        )
+        base.update(kwargs)
+        return AnalysisReport(**base)
+
+    def _verify_issue(self) -> "onnx.ModelProto":
+        from trtcheck.types import CheckCategory, Issue
+
+        return Issue(
+            severity=Severity.INFO,
+            category=CheckCategory.OPERATOR_SUPPORT,
+            node_name="n",
+            operator="X",
+            message="m",
+            remediation="r",
+            verify_required=True,
+        )
+
+    def test_blocked_beats_runtime_verified_and_unresolved(self) -> None:
+        from trtcheck.types import CheckCategory, Issue
+
+        crit = Issue(
+            severity=Severity.CRITICAL,
+            category=CheckCategory.OPERATOR_SUPPORT,
+            node_name="n",
+            operator="X",
+            message="m",
+            remediation="r",
+        )
+        report = self._report(
+            issues=[crit, self._verify_issue()],
+            runtime_verified=True,
+            runtime_verification={"status": "success"},
+        )
+        assert report.verdict is Verdict.BLOCKED
+
+    def test_verified_beats_unresolved_conditions(self) -> None:
+        report = self._report(
+            issues=[self._verify_issue()],
+            runtime_verified=True,
+            runtime_verification={"status": "success"},
+        )
+        assert report.verdict is Verdict.VERIFIED
+
+    def test_runtime_parser_failure_demotes_likely_to_unverified(self) -> None:
+        report = self._report(runtime_verification={"status": "parser_failure"})
+        assert report.verdict is Verdict.UNVERIFIED
+
+    def test_runtime_build_failure_demotes_likely_to_unverified(self) -> None:
+        report = self._report(runtime_verification={"status": "build_failure"})
+        assert report.verdict is Verdict.UNVERIFIED
+
+    def test_unavailable_runtime_leaves_static_verdict(self) -> None:
+        for status in ("missing_trtexec", "timeout", "error"):
+            report = self._report(runtime_verification={"status": status})
+            assert report.verdict is Verdict.LIKELY, status
+
+    def test_issue_identity_includes_graph_scope(self) -> None:
+        from trtcheck.types import CheckCategory, Issue
+
+        a = Issue(
+            severity=Severity.INFO,
+            category=CheckCategory.OPERATOR_SUPPORT,
+            node_name="n",
+            operator="X",
+            message="m",
+            remediation="r",
+            rule_id="TRT-X",
+            graph_scope="then_body",
+        )
+        b = Issue(
+            severity=Severity.INFO,
+            category=CheckCategory.OPERATOR_SUPPORT,
+            node_name="n",
+            operator="X",
+            message="m",
+            remediation="r",
+            rule_id="TRT-X",
+            graph_scope="else_body",
+        )
+        assert a.identity() != b.identity()
+
+    def test_json_rendering_is_deterministic(self, uint8_input_model: onnx.ModelProto) -> None:
+        r1 = _ANALYZER.analyze_model(uint8_input_model)
+        r2 = _ANALYZER.analyze_model(uint8_input_model)
+        assert JSONReporter().render(r1) == JSONReporter().render(r2)

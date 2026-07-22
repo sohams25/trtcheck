@@ -1,0 +1,19 @@
+{
+  "true_positive": 4,
+  "false_positive": 0,
+  "true_negative": 6,
+  "false_negative": 0,
+  "scored": 10,
+  "blocker_precision": 1.0,
+  "blocker_recall": 1.0,
+  "blocker_f1": 1.0,
+  "unverified_on_fail": [
+    "bundled_custom_domain"
+  ],
+  "unverified_on_convert": [
+    "bundled_fully_dynamic"
+  ],
+  "unverified_coverage": 0.16666666666666666,
+  "skipped": [],
+  "drift": []
+}
