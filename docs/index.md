@@ -2,10 +2,12 @@
 
 Static pre-flight checker for ONNX to TensorRT conversion.
 
-`trtcheck` reads an ONNX file, runs five independent checkers, and tells
-you in seconds whether the model will convert cleanly to a TensorRT engine.
-If it will not, the report explains what to fix. It runs anywhere Python
-runs -- no TensorRT, no CUDA driver, no GPU required.
+`trtcheck` checks an ONNX model for common TensorRT conversion problems
+before you build an engine, and explains each finding with a suggested
+next step. Static analysis runs anywhere Python runs -- no TensorRT, no
+CUDA driver, no GPU. When `trtexec` is available, `--verify-runtime`
+confirms the model through a real TensorRT engine build; only that path
+produces the `verified` verdict.
 
 ## Why
 
@@ -13,8 +15,9 @@ The PyTorch -> ONNX -> TensorRT pipeline fails most of the time on the
 last hop. Errors are cryptic; the iteration loop ("export, wait, read a
 C++ traceback, google, try again") burns hours per fix.
 
-`trtcheck` predicts the failure modes locally so you correct them before
-invoking `trtexec`.
+`trtcheck` surfaces the known failure modes locally so you correct them
+before invoking `trtexec`. Static analysis cannot guarantee a build --
+findings it cannot settle statically leave the verdict `unverified`.
 
 ## Quick links
 

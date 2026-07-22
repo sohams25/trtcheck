@@ -9,13 +9,18 @@
   <a href="LICENSE">                                                                         <img alt="license" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
-trtcheck is a static analysis tool for the ONNX → TensorRT conversion
-step. It reads an ONNX file, runs five independent checkers against a
-per-version TensorRT operator matrix, and reports whether the model
-will convert — with a specific remediation for each blocker it finds.
-Five built-in fixers rewrite the common failure patterns. Analysis
-runs in seconds and needs no TensorRT install, CUDA, or GPU, so it
-works on a laptop and in CI.
+**Catch ONNX → TensorRT conversion issues before engine build.**
+
+`trtcheck` checks an ONNX model for common TensorRT conversion problems
+before you build an engine. Static analysis runs without CUDA, TensorRT,
+or a GPU and explains each finding with a suggested next step. A small
+set of model fixes can be applied safely, and when `trtexec` is
+available, the same CLI can verify the model through a real TensorRT
+engine build.
+
+Static analysis identifies known problems, but it cannot guarantee that
+every model will build. Only a successful runtime check produces the
+`verified` verdict.
 
 <p align="center">
   <img src="assets/demo.svg" alt="trtcheck demo: the UINT8 case before and after --fix" width="100%">
@@ -44,7 +49,13 @@ evidence level (official documentation, inferred, or unknown — see
 ## Quick start
 
 ```bash
-$ trtcheck model.onnx
+pip install trtcheck
+
+# Static analysis — TensorRT and a GPU are not required
+trtcheck model.onnx
+
+# Real engine-build verification when trtexec is available
+trtcheck model.onnx --verify-runtime
 ```
 
 ```
@@ -59,19 +70,35 @@ CRITICAL  input  Input  Input 'input' has dtype UINT8; TensorRT
 Estimated fix time: 15–30 minutes.
 ```
 
-Every report carries one of four verdicts — **blocked** (a known critical
-incompatibility), **unverified** (no known blocker, but unresolved
-conditions: unclassified or custom-domain operators, conditional support
-that static analysis cannot settle), **likely** (all static checks passed
-— a prediction, not a guarantee), and **verified** (an optional real
-`trtexec` build succeeded via `--verify-runtime`). The exit code is `1`
-on `blocked` and `0` otherwise (`--fail-on unverified` tightens the CI
-gate), so the same command works unchanged as a CI gate.
+Machine-readable output for CI:
+
+```bash
+trtcheck model.onnx --format json --output report.json
+```
+
+## The four verdicts
+
+| Verdict | Meaning |
+|---|---|
+| `blocked` | A known critical incompatibility was found. |
+| `unverified` | The result depends on something static analysis cannot confirm: an unknown operator, a custom-domain op that needs a TensorRT plugin, or a condition only runtime can settle. |
+| `likely` | Static analysis found no known blocker, but no real TensorRT build was performed. |
+| `verified` | A real `trtexec` parser/build verification succeeded. |
+
+Four rules keep these honest:
+
+- static analysis alone never returns `verified`;
+- unknown and custom-domain operators do not silently pass — they make
+  the verdict `unverified`;
+- a runtime parser or build failure cannot remain `likely`;
+- `verified` applies to the exact model, configuration, and TensorRT
+  environment that was tested.
+
+The exit code is `1` on `blocked` and `0` otherwise; `--fail-on
+unverified` tightens the CI gate to also fail on unresolved conditions.
 [`docs/case-studies/uint8-input.md`](docs/case-studies/uint8-input.md)
-walks this exact case end to end, including the `--fix` rewrite that
-turns it into a passing graph. Verdict accuracy is measured:
-[`SCORECARD.md`](SCORECARD.md) publishes precision and recall against
-a corpus with known conversion outcomes.
+walks the UINT8 case above end to end, including the `--fix` rewrite
+that turns it into a passing graph.
 
 ## Motivation
 
@@ -107,19 +134,23 @@ includes a specific remediation. Not "this is bad" — what to change, where.
 
 ## What it auto-fixes
 
-`--fix` runs an audited, **transactional** pipeline: every fixer works on
-an isolated candidate copy, the result must pass full ONNX validation
-(strict type/shape inference) before it is kept, and the report shows
-which findings were resolved, which remain, and whether any were
-introduced. A fixer that crashes — including a third-party plugin — cannot
-leave a half-rewritten model. Use `--dry-run` to preview.
+`--fix` analyzes the original model, applies only validated
+transformations, validates the candidate, then re-analyzes it against
+the same TensorRT target and reports which findings were resolved,
+which remain, and whether any were introduced. Not every finding has an
+automatic fix, and a fixed model is still a static result — it does not
+imply runtime verification.
+
+Each fixer runs transactionally on an isolated model copy. A crashing
+plugin, an invalid transformation, or a fixer that claims a change
+without making one is rejected without modifying the committed model.
 
 | Fixer | Rewrites |
 |---|---|
 | **`uint8_input`** | Promotes a `UINT8` graph input to `FLOAT` and drops the redundant downstream `Cast` |
-| **`int64_to_int32`** | Casts `INT64` initializers to `INT32` only when every use is at a schema position that accepts INT32 (e.g. `Gather` indices) — never `Reshape`/`Slice` shape inputs, which require INT64 |
+| **`int64_to_int32`** | INT64 initializers are converted only when their values fit in INT32 and every consumer position safely accepts INT32. Inputs that require INT64 by schema, such as the shape input of `Reshape`, are left unchanged |
 | **`float64_to_float32`** | Casts `FLOAT64` initializers to `FLOAT32` when no value is NaN, infinite, or out of FP32 range |
-| **`drop_dropout`** | Removes `Dropout` nodes that are provably in inference mode (`training_mode` absent or statically false; mask unused) |
+| **`drop_dropout`** | Dropout is removed only when inference behavior is provable. A node is left unchanged when training mode is active or unresolved, or when removing it could alter an observed output |
 | **`upsample_to_resize`** | Rewrites leftover deprecated `Upsample` nodes as `Resize` on opset-13+ graphs (nearest / linear) |
 
 ```bash
@@ -128,7 +159,9 @@ trtcheck model.onnx --fix --output fixed.onnx          # apply
 ```
 
 Refuses to overwrite the input or an existing output unless you pass
-`--force`.
+`--force`. The exact rules and invariants live in
+[`docs/fixers.md`](docs/fixers.md) and
+[`docs/design/analysis-verdicts-and-fix-safety.md`](docs/design/analysis-verdicts-and-fix-safety.md).
 
 ## Measured accuracy
 
@@ -145,19 +178,33 @@ reported separately, split by ground truth. Twelve models is a small
 corpus and the failure cases are synthetic, so read this as "the checks
 do what they claim on known patterns", not as a field-accuracy estimate.
 For the scorecard corpus, ground truth is documented TRT behavior, not a
-live `trtexec` run. Separately, the runtime-verification integration was
-smoke-tested against **real TensorRT 10.3.0** (official NGC container, 7
-representative fixtures: 5 genuine engine builds, 2 genuine parser
-failures, full agreement between `--verify-runtime` and direct `trtexec`)
-— see [`REAL_TENSORRT_VALIDATION_REPORT.md`](REAL_TENSORRT_VALIDATION_REPORT.md).
-That validates the integration path and those cases, not universal model
-compatibility.
+live `trtexec` run.
 [`SCORECARD.md`](SCORECARD.md) has the per-model table, the methodology,
 and what each run caught (the first run's false negative became the
 `loop_runtime_trip_count` critical check; this run exposed a `Clip`
 coverage gap in the matrix). To grow the corpus, add a model with a
 known outcome to [`bench/manifest.yaml`](bench/manifest.yaml) and open a
 PR.
+
+### Runtime smoke validation
+
+The runtime-verification integration was tested using TensorRT 10.3.0 on
+seven bounded generated or public fixtures. Five models built
+successfully, and two expected models failed during parsing. `trtcheck`
+agreed with direct `trtexec` in all seven cases.
+
+This validates the runtime-verification path and those test cases. It
+does not establish universal compatibility across models, plugins,
+hardware, TensorRT versions, or builder configurations.
+
+One observation worth knowing: on TensorRT 10.3, `trtexec` may
+automatically build a degenerate profile for a dynamic model when
+explicit shape flags are omitted. The static missing-profile finding
+remains useful because production profiles should be supplied
+deliberately.
+
+Full commands, environment details, and per-model results:
+[`REAL_TENSORRT_VALIDATION_REPORT.md`](REAL_TENSORRT_VALIDATION_REPORT.md).
 
 ## How it compares
 
@@ -167,7 +214,7 @@ PR.
 | Time to a verdict | seconds | minutes (builds a real engine) | manual inspection |
 | Fix suggestions | per-finding remediation + `--fix` rewrites | no | no |
 | CI integration | exit code, JSON, GitHub Action | scriptable, needs a GPU runner | no |
-| Verdict strength | predicts the build outcome (and says so: four-state verdict with explicit uncertainty; optional `--verify-runtime` runs trtexec when available) | proves it | n/a |
+| Verdict strength | static analysis returns `blocked`, `unverified`, or `likely`; optional runtime verification can return `verified` after a successful real TensorRT build | proves it (builds a real engine) | n/a |
 
 Use them together. Polygraphy building an engine is the ground truth;
 if you have the GPU and the minutes, run it. Netron is for eyeballing
@@ -206,11 +253,13 @@ trtcheck model.onnx --fail-on unverified
 trtcheck model.onnx --verify-runtime
 ```
 
-Exit code is `1` on a `blocked` verdict, `0` otherwise; `--fail-on
-unverified` also fails on unresolved conditions. Findings carry stable
-rule ids (`TRT-OP-UNSUPPORTED`, `TRT-DTYPE-UINT8-INPUT`, ...) for CI
-filtering — see [`docs/rules.md`](docs/rules.md) and
-[`docs/usage.md`](docs/usage.md).
+JSON reports use schema **2.0**: each finding carries a stable `rule_id`
+(`TRT-OP-UNSUPPORTED`, `TRT-DTYPE-UINT8-INPUT`, ...), a `confidence`
+level, and a `verify_required` flag; plugin findings without their own id
+get a namespaced `PLUGIN-<name>` fallback. Every 1.x key is still
+emitted, so existing consumers keep working. Field-by-field reference and
+the full rule registry: [`docs/usage.md`](docs/usage.md) and
+[`docs/rules.md`](docs/rules.md).
 
 Full CLI reference: `trtcheck --help`.
 
@@ -237,7 +286,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
       - id: trtcheck
-        uses: sohams25/trtcheck@v1
+        uses: sohams25/trtcheck@v1.1.0
         with:
           target-trt: "10.3"
           fail-on: "critical"
@@ -332,17 +381,18 @@ Security disclosures: [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
-- Grow the bench corpus past nine models with real-world failing
-  models (detection heads, transformer blocks) and publish a refreshed
-  [`SCORECARD.md`](SCORECARD.md) per release.
-- Run the `trtexec` leg of the harness on GPU hardware and reconcile
-  the manifest's expected outcomes against live TRT behavior.
-- Track new TensorRT releases in the operator matrix. The weekly
-  [matrix-drift Action](.github/workflows/matrix-drift.yml) already
-  files a tracking issue when the upstream operator table moves.
+- Evidence-backed support entries for additional TensorRT targets as
+  they appear in the upstream operator table.
+- Broader conditional-support rules (more operators with documented
+  attribute/input restrictions, beyond TopK and Resize).
+- More public validation fixtures — real user-reported compatibility
+  cases are especially welcome.
+- Extend the real-runtime smoke to further TensorRT versions when a
+  matching official container and a repo-supported target exist.
 
-Shipped: the validation scorecard and the scheduled matrix-drift
-Action. See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
+The weekly [matrix-drift Action](.github/workflows/matrix-drift.yml)
+files a tracking issue when the upstream operator table moves. See
+[`CHANGELOG.md`](CHANGELOG.md) for release notes.
 
 ## Citation
 
