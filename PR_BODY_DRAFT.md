@@ -1,8 +1,7 @@
-# PR draft: honest verdicts, safe fixes, release readiness
+# PR body: honest verdicts, safe fixes, release readiness
 
-> Draft only — no PR has been opened. Branches:
-> `claude/trtcheck-hardening` (5 commits) + `claude/trtcheck-release-readiness`
-> (verification & hardening of the hardening), targeting `main`.
+> Source text for [PR #23](https://github.com/sohams25/trtcheck/pull/23)
+> (merged into `main` for v1.1.0).
 
 ## What this PR does
 
