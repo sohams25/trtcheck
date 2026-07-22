@@ -12,10 +12,11 @@ depends on unavailable hardware evidence. Remote state untouched.
 
 ## 2. Branches and commits
 
-- Starting point: `claude/trtcheck-hardening` @ `01b3f43`
-  (5 commits on top of `main` @ `374fe48`) — clean tree, confirmed.
-- Work branch: `claude/trtcheck-release-readiness`, created from that HEAD.
-  Hardening commits were not rewritten, squashed, or rebased.
+- Starting point: the hardening series ending at `01b3f43`
+  (5 commits on top of the pre-release `main` @ `374fe48`) — clean tree, confirmed.
+- This review pass added its commits directly on that HEAD; the hardening
+  commits were not rewritten, squashed, or rebased. All of it shipped to
+  `main` in PR #23.
 
 ## 3. Environment
 
@@ -88,8 +89,7 @@ documented. No security-critical fixes were required this pass.
 
 ## 9. Runtime evidence
 
-**Real smoke passed (2026-07-22).** On branch
-`claude/trtcheck-ngc-runtime-validation`, the 7-model corpus ran against
+**Real smoke passed (2026-07-22).** The 7-model corpus ran against
 genuine TensorRT **10.3.0** (official NGC container
 `nvcr.io/nvidia/tensorrt:24.08-py3`, RTX 4050 Laptop GPU, driver
 580.126.20) using the installed wheel: 5 genuine engine builds, 2 genuine
@@ -98,8 +98,7 @@ parser failures, 0 wrapper/direct-trtexec disagreements. Full evidence:
 `bench/real_tensorrt_smoke_results.json`. This validates the verification
 integration and the selected cases, not universal model compatibility.
 
-(An earlier same-day host-level attempt on
-`claude/trtcheck-real-tensorrt-validation` was BLOCKED — no host TensorRT
+(An earlier same-day host-level attempt (commit `7527404`) was BLOCKED — no host TensorRT
 existed; the container route above resolved it without any host changes.
 Reproduce with `scripts/real-smoke-container.sh`.)
 
@@ -138,7 +137,8 @@ CI gates that must treat unresolved conditions as failures: add
 `scripts/package-smoke.sh`; tests (`test_verdicts`, `test_runtime_verify`,
 `test_fixers_transactional`, `test_plugins_module`, `test_bench_score`);
 docs (`usage.md`, design doc, README, CHANGELOG, RELEASE_NOTES_DRAFT);
-new `SECURITY_REVIEW.md`, `PR_BODY_DRAFT.md`, this report.
+new `SECURITY_REVIEW.md`, the PR body draft (since removed after
+the PR merged), this report.
 
 ## 14. Local commits (this branch)
 
@@ -162,26 +162,12 @@ repurposed). Bump `trtcheck/__init__.py.__version__` and
 1. ~~Run the real trtexec smoke on a TensorRT machine~~ — **DONE**
    (2026-07-22, NGC TensorRT 10.3 container; see
    `REAL_TENSORRT_VALIDATION_REPORT.md`). No external checks remain.
-2. Push branches, open the PR (draft body in `PR_BODY_DRAFT.md`), let CI
-   run on all supported Pythons.
+2. Push branches, open the PR, let CI run on all supported Pythons.
 3. Optional: refresh `assets/demo.svg` from live CLI output (text updated;
    layout not re-rendered).
 
-## 17. Commands for later (do not run automatically)
+## 17. Outcome
 
-```bash
-# inspect
-git log --oneline main..claude/trtcheck-release-readiness
-git diff main...claude/trtcheck-release-readiness
-
-# push + PR
-git push -u origin claude/trtcheck-hardening claude/trtcheck-release-readiness
-gh pr create --base main --head claude/trtcheck-release-readiness \
-  --title "Honest verdicts, safe fixes, release readiness" \
-  --body-file PR_BODY_DRAFT.md
-
-# release (after merge + version bump + CHANGELOG roll)
-git tag -a v1.1.0 -m "trtcheck 1.1.0"
-git push origin v1.1.0
-python -m build && python -m twine check dist/* && python -m twine upload dist/*
-```
+All of these steps were subsequently completed: the work merged to `main`
+as PR #23, `v1.1.0` was tagged, and the tag-triggered workflow published
+to PyPI. See `PUBLIC_RELEASE_REPORT.md` for the release record.

@@ -1,8 +1,7 @@
 # Real TensorRT validation report
 
-Date: 2026-07-22. Branch: `claude/trtcheck-ngc-runtime-validation`
-(supersedes the BLOCKED attempt recorded on
-`claude/trtcheck-real-tensorrt-validation`).
+Date: 2026-07-22. Shipped in v1.1.0 via PR #23 (this run supersedes the
+earlier same-day BLOCKED host-level attempt, commit `7527404`).
 
 ## Status: **COMPLETE — real runtime smoke passed**
 
