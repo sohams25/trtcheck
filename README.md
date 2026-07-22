@@ -259,7 +259,7 @@ repo. Full template at
 
 | Input | Default | Purpose |
 |---|---|---|
-| `version` | `1.0.0` | trtcheck PyPI version to install |
+| `version` | `1.1.0` | trtcheck PyPI version to install |
 | `target-trt` | `10.3` | `--target-trt` value |
 | `severity` | `warning` | `--severity` filter |
 | `fail-on` | `critical` | Exit policy: `critical`, `warning`, or `never` |

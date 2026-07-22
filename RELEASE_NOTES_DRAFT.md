@@ -1,4 +1,4 @@
-# trtcheck v1.1.0 — draft release notes (not published)
+# trtcheck v1.1.0 — release notes
 
 Theme: **honest verdicts, safe fixes.**
 
@@ -55,12 +55,8 @@ selected cases, not universal model compatibility.
   converts fewer INT64 initializers than before (only provably safe
   uses). This is deliberate: the removed conversions were unsound.
 
-## Release checklist (do not publish from this branch)
+## Install
 
-- [ ] bump `__version__` and `pyproject.toml` to 1.1.0
-- [ ] move CHANGELOG Unreleased → 1.1.0 with date
-- [ ] full suite + mypy strict + black/isort on a clean checkout
-- [ ] regenerate operator docs + matrix (`tools/`) and verify drift check
-- [ ] rerun `bench/` scorecard, refresh SCORECARD.md date/numbers
-- [ ] run `scripts/package-smoke.sh` against the release wheel
-- [ ] tag + build wheel/sdist, verify `pip install` in a fresh venv
+```bash
+pip install trtcheck==1.1.0
+```

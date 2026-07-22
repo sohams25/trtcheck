@@ -10,7 +10,7 @@ inputs:
   version:
     description: 'Pinned trtcheck PyPI version'
     required: false
-    default: '1.0.0'
+    default: '1.1.0'
   target-trt:
     description: 'TensorRT version to check against (e.g. 10.3)'
     required: false

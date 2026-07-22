@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
-## [Unreleased]
+## [1.1.0] - 2026-07-22
 
 ### Added
 - Real-TensorRT smoke validation (2026-07-22): the 7-model corpus ran
@@ -113,9 +113,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 - The exit code is computed from the unfiltered report: `--severity`
   affects display only.
 
----
-
-_Earlier unreleased entries (pre-hardening pass):_
+_Also in this release (earlier unreleased entries):_
 
 ### Fixed
 - The README / case-study `--fix` walkthrough is reproducible again. The
