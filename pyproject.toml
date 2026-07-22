@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "trtcheck"
 version = "1.1.0"
-description = "Static pre-flight checker for ONNX -> TensorRT conversion."
+description = "Static ONNX-to-TensorRT checks, safe model fixes, and optional trtexec verification."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }

@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - id: trtcheck
-        uses: sohams25/trtcheck@v1
+        uses: sohams25/trtcheck@v1.1.0
         with:
           target-trt: "10.3"
           fail-on: "critical"
