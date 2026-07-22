@@ -1,0 +1,189 @@
+{
+  "generated": "2026-07-22",
+  "purpose": "real TensorRT smoke corpus results",
+  "runtime_evidence": "NONE - BLOCKED: no TensorRT/trtexec on this host",
+  "environment": {
+    "os": "Linux 6.8.0-106-generic (x86_64)",
+    "python": "3.13.9",
+    "onnx": "1.21.0",
+    "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU (6 GB)",
+    "nvidia_driver": "580.126.20",
+    "cuda_toolkit": "not installed",
+    "tensorrt": "not installed",
+    "trtexec": "not found (PATH, bounded full-disk scan, ldconfig, dpkg, pip, docker images)"
+  },
+  "fix_pipeline_check": {
+    "uint8_input_fix": {
+      "verdict_before": "blocked",
+      "verdict_after": "likely",
+      "fixes": [
+        "uint8_input"
+      ]
+    },
+    "reshape_int64_refusal": {
+      "int64_fixer_applied": false,
+      "fixes": []
+    }
+  },
+  "models": [
+    {
+      "name": "clean_minimal",
+      "model": "tests/fixtures/clean_minimal.onnx",
+      "expected_runtime_outcome": "build_success",
+      "static": {
+        "target_trt": "10.3",
+        "verdict": "likely",
+        "exit_code": 0,
+        "rule_ids": [],
+        "elapsed_s": 0.15
+      },
+      "trtcheck_verify_runtime": {
+        "status": "missing_trtexec",
+        "verdict_after": "likely",
+        "note": "controlled missing-verifier path only; NOT runtime evidence"
+      },
+      "direct_trtexec": {
+        "status": "not_run",
+        "reason": "trtexec unavailable on host"
+      }
+    },
+    {
+      "name": "squeezenet1_1_public",
+      "model": "bench/cache/squeezenet1_1.onnx",
+      "expected_runtime_outcome": "build_success",
+      "static": {
+        "target_trt": "10.3",
+        "verdict": "likely",
+        "exit_code": 0,
+        "rule_ids": [
+          "TRT-DTYPE-INT64-WEIGHTS",
+          "TRT-OPSET-OLD"
+        ],
+        "elapsed_s": 0.16
+      },
+      "trtcheck_verify_runtime": {
+        "status": "missing_trtexec",
+        "verdict_after": "likely",
+        "note": "controlled missing-verifier path only; NOT runtime evidence"
+      },
+      "direct_trtexec": {
+        "status": "not_run",
+        "reason": "trtexec unavailable on host"
+      }
+    },
+    {
+      "name": "sequence_empty",
+      "model": "tests/fixtures/failing/sequence_empty.onnx",
+      "expected_runtime_outcome": "parser_failure",
+      "static": {
+        "target_trt": "10.3",
+        "verdict": "blocked",
+        "exit_code": 1,
+        "rule_ids": [
+          "TRT-DTYPE-INT64-WEIGHTS",
+          "TRT-OP-UNSUPPORTED"
+        ],
+        "elapsed_s": 0.15
+      },
+      "trtcheck_verify_runtime": {
+        "status": "missing_trtexec",
+        "verdict_after": "blocked",
+        "note": "controlled missing-verifier path only; NOT runtime evidence"
+      },
+      "direct_trtexec": {
+        "status": "not_run",
+        "reason": "trtexec unavailable on host"
+      }
+    },
+    {
+      "name": "fully_dynamic",
+      "model": "tests/fixtures/failing/fully_dynamic.onnx",
+      "expected_runtime_outcome": "needs_optimization_profile",
+      "static": {
+        "target_trt": "10.3",
+        "verdict": "unverified",
+        "exit_code": 0,
+        "rule_ids": [
+          "TRT-SHAPE-PROFILE-MISSING"
+        ],
+        "elapsed_s": 0.15
+      },
+      "trtcheck_verify_runtime": {
+        "status": "missing_trtexec",
+        "verdict_after": "unverified",
+        "note": "controlled missing-verifier path only; NOT runtime evidence"
+      },
+      "direct_trtexec": {
+        "status": "not_run",
+        "reason": "trtexec unavailable on host"
+      }
+    },
+    {
+      "name": "custom_domain",
+      "model": "tests/fixtures/custom_domain.onnx",
+      "expected_runtime_outcome": "parser_failure_without_plugin",
+      "static": {
+        "target_trt": "10.3",
+        "verdict": "unverified",
+        "exit_code": 0,
+        "rule_ids": [
+          "TRT-OP-CUSTOM-DOMAIN"
+        ],
+        "elapsed_s": 0.17
+      },
+      "trtcheck_verify_runtime": {
+        "status": "missing_trtexec",
+        "verdict_after": "unverified",
+        "note": "controlled missing-verifier path only; NOT runtime evidence"
+      },
+      "direct_trtexec": {
+        "status": "not_run",
+        "reason": "trtexec unavailable on host"
+      }
+    },
+    {
+      "name": "uint8_fixed_via_fix",
+      "model": "uint8_input.onnx after --fix",
+      "expected_runtime_outcome": "build_success",
+      "static": {
+        "target_trt": "10.3",
+        "verdict": "likely",
+        "exit_code": 0,
+        "rule_ids": [],
+        "elapsed_s": 0.17
+      },
+      "trtcheck_verify_runtime": {
+        "status": "missing_trtexec",
+        "verdict_after": "likely",
+        "note": "controlled missing-verifier path only; NOT runtime evidence"
+      },
+      "direct_trtexec": {
+        "status": "not_run",
+        "reason": "trtexec unavailable on host"
+      }
+    },
+    {
+      "name": "reshape_int64_shape",
+      "model": "tests/fixtures/reshape_int64_shape.onnx",
+      "expected_runtime_outcome": "build_success",
+      "static": {
+        "target_trt": "10.3",
+        "verdict": "likely",
+        "exit_code": 0,
+        "rule_ids": [
+          "TRT-DTYPE-INT64-WEIGHTS"
+        ],
+        "elapsed_s": 0.16
+      },
+      "trtcheck_verify_runtime": {
+        "status": "missing_trtexec",
+        "verdict_after": "likely",
+        "note": "controlled missing-verifier path only; NOT runtime evidence"
+      },
+      "direct_trtexec": {
+        "status": "not_run",
+        "reason": "trtexec unavailable on host"
+      }
+    }
+  ]
+}

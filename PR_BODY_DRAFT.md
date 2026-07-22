@@ -43,5 +43,6 @@
 - [x] `python -m build` + `twine check` pass
 - [x] `scripts/package-smoke.sh` — wheel install in fresh venv, CLI
       analyze / JSON / fix / missing-trtexec paths
-- [ ] Real `trtexec` smoke on a TensorRT machine (external; see
-      RELEASE_READINESS_REPORT.md §runtime evidence)
+- [ ] Real `trtexec` smoke on a TensorRT machine — attempted on the dev
+      host and blocked (no TensorRT present); procedure + partial live
+      validation in `REAL_TENSORRT_VALIDATION_REPORT.md`

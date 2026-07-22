@@ -57,3 +57,8 @@ bench/cache/
 
 # graphify local knowledge-graph artifact (per-developer, regenerated via `graphify update .`)
 graphify-out/
+
+# TensorRT runtime artifacts (from --verify-runtime / trtexec smoke runs)
+*.engine
+*.plan
+*.trt
