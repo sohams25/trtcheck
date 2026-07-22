@@ -1,6 +1,6 @@
 # Security review — release-readiness pass (2026-07-22)
 
-Scope: the `claude/trtcheck-release-readiness` branch, all tracked files
+Scope: the v1.1.0 release-readiness state of the repository, all tracked files
 plus build output. This is a project self-review, not an external audit.
 Vulnerability reporting instructions live in [SECURITY.md](SECURITY.md).
 

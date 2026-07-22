@@ -41,15 +41,12 @@ Thumbs.db
 # Project-local
 /*.onnx
 /scratch/
-.claude_state.jsonl
 report.html
 report.json
 
 # Optional benchmark inputs (real ONNX models, kept out of git)
 tests/fixtures/benchmark/
 
-# Cron / autonomous-progress state (not part of the published repo)
-.claude/
 bench/cache/
 
 # mkdocs build output
