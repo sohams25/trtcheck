@@ -6,6 +6,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 ## [Unreleased]
 
 ### Added
+- Release-readiness pass (2026-07-22): a recorded trtexec parser/build
+  *failure* now demotes an otherwise-`likely` verdict to `unverified`
+  (runtime evidence against the model is never hidden behind a clean
+  static prediction); fixers that report changes without modifying the
+  model are rejected; plugin checker findings without a `rule_id` get a
+  namespaced `PLUGIN-<name>` fallback; `--fix` before/after identity now
+  includes the owning graph scope; `bench/score.py --json` emits a
+  machine-readable summary; `scripts/package-smoke.sh` installs the built
+  wheel into a fresh venv and exercises the CLI from outside the repo;
+  `SECURITY_REVIEW.md` documents the reviewed surfaces and trust model.
 - **Four-state verdict model.** `AnalysisReport.verdict` is now one of
   `blocked` / `unverified` / `likely` / `verified` (`trtcheck.Verdict`).
   `unverified` is new: no known blocker, but unresolved conditions remain.

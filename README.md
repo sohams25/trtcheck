@@ -35,7 +35,11 @@ cd trtcheck
 pip install -e ".[dev]"
 ```
 
-Python 3.10+. No platform dependencies beyond `onnx` itself.
+Python 3.10–3.13, `onnx >= 1.15, < 2.0`. No platform dependencies beyond
+`onnx` itself — analysis needs no TensorRT, no GPU. Modeled TensorRT
+targets: 8.0, 8.6, 10.0, 10.3; each operator entry carries its own
+evidence level (official documentation, inferred, or unknown — see
+[`docs/rules.md`](docs/rules.md) and the operator pages).
 
 ## Quick start
 

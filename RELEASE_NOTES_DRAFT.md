@@ -29,8 +29,9 @@ Theme: **honest verdicts, safe fixes.**
   upstream onnx-tensorrt table).
 - **Optional runtime verification.** `trtcheck model.onnx
   --verify-runtime` runs `trtexec` when available and upgrades the
-  verdict to `verified` on a successful build. Static analysis still
-  needs no TensorRT, no GPU.
+  verdict to `verified` on a successful build; a recorded parser/build
+  *failure* demotes an otherwise-clean report to `unverified`. Static
+  analysis still needs no TensorRT, no GPU.
 
 ## Compatibility
 
@@ -53,4 +54,5 @@ Theme: **honest verdicts, safe fixes.**
 - [ ] full suite + mypy strict + black/isort on a clean checkout
 - [ ] regenerate operator docs + matrix (`tools/`) and verify drift check
 - [ ] rerun `bench/` scorecard, refresh SCORECARD.md date/numbers
+- [ ] run `scripts/package-smoke.sh` against the release wheel
 - [ ] tag + build wheel/sdist, verify `pip install` in a fresh venv
