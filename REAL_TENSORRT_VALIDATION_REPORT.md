@@ -1,158 +1,186 @@
 # Real TensorRT validation report
 
-Date: 2026-07-22. Branch: `claude/trtcheck-real-tensorrt-validation`
-(from `claude/trtcheck-release-readiness` @ `063f071`).
+Date: 2026-07-22. Branch: `claude/trtcheck-ngc-runtime-validation`
+(supersedes the BLOCKED attempt recorded on
+`claude/trtcheck-real-tensorrt-validation`).
 
-## Status: **BLOCKED — no TensorRT on this host**
+## Status: **COMPLETE — real runtime smoke passed**
 
-The runtime-verification leg could not run: this machine has an NVIDIA
-GPU and driver but **no TensorRT installation of any kind**. Nothing in
-this report is runtime evidence; no runtime result has been fabricated.
-Everything that *can* be validated without TensorRT was validated and is
-recorded below.
+Real runtime integration was smoke-tested on **TensorRT 10.3.0** using 7
+representative generated/public fixtures inside the official NGC
+container. This validates the verification integration and the selected
+cases, **not universal model compatibility**.
 
 ## 1. Environment
 
 | Item | Value |
 |---|---|
-| OS | Linux 6.8.0-106-generic (x86_64) |
-| Python | 3.13.9 (repo venv) |
-| GPU | NVIDIA GeForce RTX 4050 Laptop GPU, 6141 MiB (5697 MiB free) |
-| NVIDIA driver | 580.126.20 (`nvidia-smi` works) |
-| CUDA toolkit | not installed (`nvcc` absent; no `/usr/local/cuda*`) |
-| TensorRT | **not installed** |
-| trtexec | **not found** |
-| onnx | 1.21.0 |
-| Git state | clean tree at branch creation |
+| Host OS | Zorin OS 17.3 (Ubuntu 22.04 base), Linux 6.8.0-106-generic, x86_64 |
+| GPU | NVIDIA GeForce RTX 4050 Laptop GPU (6 GB) |
+| NVIDIA driver | 580.126.20 |
+| Docker | Engine 29.3.0 (native, default context) |
+| NVIDIA Container Toolkit | **not installed** — see GPU-access strategy below |
+| Container image | `nvcr.io/nvidia/tensorrt:24.08-py3` |
+| Image digest | `sha256:9507e5f248fc61a5b2c985ce6e386ecf2576c3d96112ceb38cf88b240d4ca072` (14.6 GB local) |
+| TensorRT (in container) | **10.3.0** (`trtexec` at `/opt/tensorrt/bin/trtexec`, banner `TensorRT v100300`) |
+| Container Python | 3.10 |
+| trtcheck under test | **installed wheel** `trtcheck-1.0.0-py3-none-any.whl` (never editable) |
 
-## 2. Blocker evidence (exact checks)
+### Why this image
 
-Every discovery avenue was exhausted:
+The repository's support targets are TensorRT 8.0 / 8.6 / 10.0 / 10.3.
+Newer NGC images carry TensorRT versions (10.16, 11.0) that are **not**
+repository targets, and claiming them would violate the evidence policy.
+`24.08-py3` is the official NGC release that ships **exactly TensorRT
+10.3**, matching the default target the whole matrix is scored against.
 
-```text
-$ which trtexec                     -> not on PATH
-$ ls /usr/src/tensorrt/bin/trtexec /usr/local/tensorrt*/bin/trtexec \
-     /opt/tensorrt*/bin/trtexec /opt/nvidia/tensorrt*/bin/trtexec
-                                    -> no such files
-$ timeout 60 find / -xdev -name trtexec   -> no match before timeout
-$ ldconfig -p | grep -i nvinfer     -> empty (no TensorRT libraries)
-$ apt list --installed | grep -iE 'tensorrt|nvinfer'  -> empty
-$ python3 -c "import tensorrt"      -> ModuleNotFoundError
-$ ls /opt/nvidia                    -> sdkmanager only (Jetson flashing tool)
-$ docker images                     -> 39 images; none contain TensorRT
-                                       (ROS/Supabase/build tooling; the only
-                                       ML images are third-party-owned aarch64
-                                       Jetson images — out of scope by policy
-                                       and the wrong architecture)
-```
+### GPU-access strategy (no host changes)
 
-The repository's override mechanism (`trtcheck --trtexec PATH`) was
-inspected and works, but there is no executable to point it at.
+`sudo` on this host requires an interactive password, so the NVIDIA
+Container Toolkit could not be installed. Instead of modifying the host,
+GPU access uses manual passthrough — strictly less invasive:
 
-Not attempted, deliberately: `pip install tensorrt` (multi-GB CUDA wheel
-stack that still ships **no trtexec binary** — the CLI path under test),
-pulling an NGC TensorRT container (~8 GB), or apt-installing TensorRT +
-CUDA system-wide. All are the heavyweight automatic installations this
-task prohibits.
+- `--device /dev/nvidia0 /dev/nvidiactl /dev/nvidia-uvm /dev/nvidia-uvm-tools`
+- read-only mounts of the driver's user-space libraries only
+  (`libcuda*`, `libcudadebugger*`, `libnvidia-ml*`, `libnvidia-cfg*`,
+  `libnvidia-nvvm*`, `libnvidia-ptxjitcompiler*`, `libnvidia-gpucomp*`)
+  staged into a temp dir, exposed via `LD_LIBRARY_PATH=/nvlibs`
+- read-only mount of the host `nvidia-smi` binary (NGC images don't ship it)
 
-## 3. Corpus and what WAS validated
+Verified end-to-end before the corpus: `nvidia-smi` sees the RTX 4050
+inside the container and a real engine build PASSED. **Zero host
+packages/configuration were installed or changed** (nothing to roll back).
+`scripts/real-smoke-container.sh` automates all of this and prefers
+`--gpus all` automatically on hosts where the toolkit exists.
 
-Bounded 7-model corpus (all repository-owned/deterministic, plus one
-public ONNX Model Zoo model already cached with SHA-256 verification).
+## 2. Corpus and results
+
+Runner: `scripts/real-smoke-container.sh` → `scripts/real_tensorrt_smoke.py`.
 Machine-readable results: [`bench/real_tensorrt_smoke_results.json`](bench/real_tensorrt_smoke_results.json).
+Per model: static analysis (target 10.3), `trtcheck --verify-runtime
+--trtexec <real>`, and an **independent direct trtexec run**, all with
+timeouts and bounded output capture.
 
-| Model | Expected real outcome | Static verdict (TRT 10.3 target) | `--verify-runtime` on this host |
-|---|---|---|---|
-| clean_minimal | build success | likely | `missing_trtexec` (controlled) |
-| squeezenet1_1 (public zoo) | build success | likely | `missing_trtexec` |
-| sequence_empty | parser failure | **blocked** | `missing_trtexec` |
-| fully_dynamic | needs optimization profile | **unverified** | `missing_trtexec` |
-| custom_domain | parser failure w/o plugin | **unverified** | `missing_trtexec` |
-| uint8_input after `--fix` | build success | likely (was blocked) | `missing_trtexec` |
-| reshape_int64_shape | build success | likely | `missing_trtexec` |
+| Model | Static verdict | Wrapper runtime | Direct trtexec | Agree | Expected |
+|---|---|---|---|---|---|
+| clean_minimal | likely | success → **verified** | build PASSED (~6 s) | yes | yes |
+| squeezenet1_1 (public zoo) | likely | success → **verified** | build PASSED | yes | yes |
+| sequence_empty | **blocked** | parser_failure → stays blocked | parser FAILED | yes | yes |
+| fully_dynamic | unverified | success → verified¹ | build PASSED¹ | yes | yes¹ |
+| custom_domain | unverified | parser_failure → stays **unverified** | parser FAILED | yes | yes |
+| uint8_input after `--fix` | likely (was blocked) | success → **verified** | build PASSED | yes | yes |
+| reshape_int64_shape | likely | success → **verified** | build PASSED | yes | yes |
 
-Invariants verified live on this host (the subset that does not require
-TensorRT):
+**Summary: 7/7 run, 5 genuine engine builds, 2 genuine parser failures,
+0 wrapper/direct disagreements, 0 unexpected outcomes.**
 
-- static analysis alone **never** produced `verified` (asserted for all 7);
-- a missing verifier is a **controlled** `missing_trtexec` status — no
-  uncaught exception, exit codes unchanged;
-- `--fix` on `uint8_input.onnx` produced a fully-valid model
-  (`blocked -> likely`) through the installed pipeline;
-- the Int64 fixer **refused** the Reshape shape-input conversion on the
-  regression fixture (`--fix --dry-run` applies no `int64_to_int32` fix);
-- trtexec discovery, argument construction, timeout, and the
-  parser/build/timeout/missing classification remain covered by the
-  deterministic mocked suite (`tests/test_runtime_verify.py`, 9 tests),
-  including the invariant that a real parser/build failure demotes a
-  `likely` verdict to `unverified`.
+¹ See dynamic-shape analysis below.
 
-## 4. Static-to-runtime comparison
+Key invariants confirmed with real execution:
 
-**Not possible on this host.** No direct trtexec runs, no agreement
-analysis, no elapsed build times. The table above records expectations,
-not outcomes.
+- static analysis alone never yields `verified`; only the real trtexec
+  success path set it;
+- real parser failures were classified `parser_failure` (not lost, not
+  misread from incidental log text) and never upgraded the verdict;
+- the custom-domain model did **not** become verified without its plugin
+  — trtexec's parser rejects it and trtcheck stays `unverified`;
+- the `--fix` output of the UINT8 fixture — produced by the installed
+  wheel inside the container — genuinely builds an engine;
+- the Reshape INT64 regression model builds as-is, and the fixer's
+  refusal to convert its shape initializer was re-confirmed in-container;
+- trtexec is invoked as an argument list with a timeout; the recorded
+  commands round-trip exactly.
 
-## 5. Defects discovered
+## 3. Dynamic-shape / profile analysis
 
-None attributable to trtcheck on this leg. (Classification A–D not
-exercised for runtime behavior; the environment result is category C:
-environmental, documented, no static rules changed to compensate.)
+Observed, version-specific tool behavior on **TensorRT 10.3 trtexec**: a
+model whose input is fully dynamic (`[batch, channels, h, w]`) does *not*
+fail without shape flags — trtexec warns
+`Dynamic dimensions required for input: input, but no shapes were
+provided. Automatically overriding shape to: 1x1x1x1` and builds a
+degenerate engine. With an explicit profile
+(`--minShapes=input:1x1x8x8 --optShapes=input:1x3x64x64
+--maxShapes=input:2x3x128x128`) the build also passes (5.2 s).
 
-## 6. Fixes made / tests added
+Consequences, honestly stated:
 
-None required by this leg. No code changed on this branch; the only new
-artifacts are this report and the results JSON.
+- a missing profile is **not** misclassified as an unsupported-operator
+  failure — it isn't a failure at all on this trtexec version;
+- trtcheck's static `TRT-SHAPE-PROFILE-MISSING` (unverified) finding
+  remains the right warning: the no-profile "success" builds an engine
+  fixed at 1×1×1×1, which is not a usable dynamic deployment;
+- the wrapper reports `verified` for that no-profile success because a
+  build genuinely succeeded in this environment; the auto-override
+  warning is preserved in the recorded output tail. This nuance is
+  listed under limitations.
 
-## 7. Remaining limitations
+This is recorded as TensorRT-10.3-specific evidence only; no
+generalization to other versions and no matrix changes were made from it.
 
-- Runtime verification remains validated **only** through mocked
-  subprocess tests plus the live missing-verifier path. No real TensorRT
-  parser/build has ever been executed against this codebase.
-- The scorecard's ground truth remains documented TRT behavior, not live
-  builds (already stated in `SCORECARD.md` and the README).
+## 4. Defects discovered
 
-## 8. Exact reproduction commands (for a machine WITH TensorRT)
+- **trtcheck product defects: none.** All wrapper classifications matched
+  independent trtexec behavior; JSON stayed schema-valid (2.0) under real
+  runs; the installed wheel worked end-to-end in-container.
+- **Smoke-runner defects (fixed in `scripts/real_tensorrt_smoke.py`
+  before the final run):** (1) it parsed trtcheck JSON from a truncated
+  output tail; (2) it mis-extracted the TensorRT version because
+  `trtexec --version` exits non-zero on this build; (3) its initial
+  no-profile expectation for dynamic models didn't match real TRT 10.3
+  behavior. These are test-harness fixes, not product changes, and the
+  runner is deterministic and repo-owned.
+
+## 5. Installed-wheel validation
+
+The corpus ran the **installed console script** (`pip install
+/wheel/trtcheck-1.0.0-py3-none-any.whl` inside the container, repo
+mounted read-only): packaged matrix/remediation data loaded, entry point
+worked, explicit `--trtexec` configuration worked, JSON reports remained
+schema 2.0 with rule ids throughout.
+
+## 6. Cleanup
+
+- No engines were saved (`--saveEngine` never passed); container work
+  dirs live under `/tmp` outside the repo; staged driver libs are removed
+  by the wrapper's trap.
+- Temporary containers were `--rm` (none remain).
+- `.gitignore` covers `*.engine`, `*.plan`, `*.trt`.
+- The NGC image (14.6 GB) is retained in the local Docker cache — 150+ GB
+  remain free. Optional removal: `docker rmi nvcr.io/nvidia/tensorrt:24.08-py3`.
+- Unrelated images/containers untouched. No host packages or
+  configuration were changed (nothing to back up or roll back).
+
+## 7. Limitations
+
+- Bounded smoke: 7 models, one TensorRT version (10.3.0), one GPU
+  (RTX 4050 Laptop). This validates the verification integration and the
+  selected cases — it is not a compatibility benchmark, and results are
+  not generalized to TensorRT 8.x/10.0 or other hardware.
+- `verified` means "trtexec parsed and built an engine in this
+  environment"; for dynamic models without profiles, TRT 10.3 builds a
+  degenerate 1×1×1×1 engine (see §3) — the static unverified findings
+  remain the actionable signal for dynamic deployments.
+- The public-model leg used the already-cached, SHA-256-verified
+  squeezenet1_1 from the ONNX Model Zoo.
+
+## 8. Reproduction
 
 ```bash
-# 0) confirm the verifier
-trtexec --version
-
-# 1) per-model: static, then real verification (expect VERIFIED on clean models)
-trtcheck tests/fixtures/clean_minimal.onnx --target-trt 10.3 --format json
-trtcheck tests/fixtures/clean_minimal.onnx --target-trt 10.3 --verify-runtime --verify-timeout 900
-
-# 2) expected failure (SequenceEmpty): verdict stays blocked; trtexec parser fails
-trtcheck tests/fixtures/failing/sequence_empty.onnx --verify-runtime
-trtexec --onnx=tests/fixtures/failing/sequence_empty.onnx   # independent check
-
-# 3) dynamic shapes: trtexec needs explicit profiles
-trtexec --onnx=tests/fixtures/failing/fully_dynamic.onnx \
-  --minShapes=input:1x3x32x32 --optShapes=input:4x3x224x224 --maxShapes=input:8x3x512x512
-
-# 4) custom domain without plugin: must NOT become verified
-trtcheck tests/fixtures/custom_domain.onnx --verify-runtime
-
-# 5) fix-then-verify
-trtcheck tests/fixtures/failing/uint8_input.onnx --fix --output /tmp/fixed.onnx
-trtcheck /tmp/fixed.onnx --verify-runtime
-
-# 6) Reshape INT64 regression model builds as-is
-trtcheck tests/fixtures/reshape_int64_shape.onnx --verify-runtime
-
-# 7) refresh the machine-readable evidence honestly
-#    (replace direct_trtexec.status entries with real outcomes)
+# one-time: docker pull nvcr.io/nvidia/tensorrt:24.08-py3
+python -m build                       # produce dist/trtcheck-*.whl
+scripts/real-smoke-container.sh       # runs the whole corpus, prints the summary
+# results JSON is written to the printed temp dir; the committed copy is
+# bench/real_tensorrt_smoke_results.json
 ```
 
-Record the TensorRT version printed by trtexec in the results file; do
-not generalize outcomes to other TensorRT versions.
+On a host with the NVIDIA Container Toolkit the script uses `--gpus all`
+automatically; otherwise it falls back to the no-root manual passthrough
+described above.
 
-## 9. Does the evidence justify a v1.1.0 release?
+## 9. Release recommendation
 
-The **static, packaging, safety, and mocked-integration** evidence is
-complete and strong. The **real-runtime smoke is still outstanding** and
-is the one named external check in `RELEASE_READINESS_REPORT.md`.
-Recommendation unchanged: **release v1.1.0 after the real trtexec smoke
-passes on a TensorRT machine** (expected: one genuine `verified`, one
-correctly-classified failure). Releasing without it would ship an
-integration path that has never touched the real tool it wraps.
+The one named external check from `RELEASE_READINESS_REPORT.md` — a real
+trtexec smoke with at least one genuine success and one genuine failure —
+has now passed, with full wrapper/direct agreement, using the installed
+wheel. **Recommendation: release v1.1.0** (after the routine version-bump
+and changelog-roll checklist in `RELEASE_NOTES_DRAFT.md`).

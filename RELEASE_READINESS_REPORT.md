@@ -88,26 +88,20 @@ documented. No security-critical fixes were required this pass.
 
 ## 9. Runtime evidence
 
-**Mocked only.** A dedicated real-validation attempt on 2026-07-22
-(`claude/trtcheck-real-tensorrt-validation`, see
-`REAL_TENSORRT_VALIDATION_REPORT.md`) confirmed this host has a GPU but no
-TensorRT installation by any avenue (PATH, disk scan, ldconfig, apt, pip,
-containers); the run validated the static corpus, the controlled
-missing-verifier path, and the fix pipeline live, and recorded results in
-`bench/real_tensorrt_smoke_results.json` without fabricating runtime
-outcomes. No TensorRT, trtexec, or usable TensorRT container exists in this environment;
-no runtime claims are made anywhere in the repo. Exact real-world
-procedure on a TensorRT machine:
+**Real smoke passed (2026-07-22).** On branch
+`claude/trtcheck-ngc-runtime-validation`, the 7-model corpus ran against
+genuine TensorRT **10.3.0** (official NGC container
+`nvcr.io/nvidia/tensorrt:24.08-py3`, RTX 4050 Laptop GPU, driver
+580.126.20) using the installed wheel: 5 genuine engine builds, 2 genuine
+parser failures, 0 wrapper/direct-trtexec disagreements. Full evidence:
+`REAL_TENSORRT_VALIDATION_REPORT.md` +
+`bench/real_tensorrt_smoke_results.json`. This validates the verification
+integration and the selected cases, not universal model compatibility.
 
-```bash
-trtcheck model.onnx --verify-runtime --verify-timeout 900   # per model
-# corpus leg: for each bench/manifest.yaml entry
-trtexec --onnx=<model>   # record convert/fail into bench/outcomes.json under "trtexec"
-python bench/score.py --outcomes bench/outcomes.json --json bench/summary.json
-```
-
-Expect at least one success (e.g. `tests/fixtures/clean_minimal.onnx`) and
-one failure (e.g. `tests/fixtures/failing/sequence_empty.onnx`).
+(An earlier same-day host-level attempt on
+`claude/trtcheck-real-tensorrt-validation` was BLOCKED — no host TensorRT
+existed; the container route above resolved it without any host changes.
+Reproduce with `scripts/real-smoke-container.sh`.)
 
 ## 10. Benchmark evidence and limitations
 
@@ -165,10 +159,9 @@ repurposed). Bump `trtcheck/__init__.py.__version__` and
 
 ## 16. Remaining external actions
 
-1. Run the real trtexec smoke on a TensorRT machine — attempted 2026-07-22
-   and BLOCKED by the environment (see `REAL_TENSORRT_VALIDATION_REPORT.md`
-   §2 for the evidence and §8 for the exact procedure). Still the only
-   check that cannot be done here.
+1. ~~Run the real trtexec smoke on a TensorRT machine~~ — **DONE**
+   (2026-07-22, NGC TensorRT 10.3 container; see
+   `REAL_TENSORRT_VALIDATION_REPORT.md`). No external checks remain.
 2. Push branches, open the PR (draft body in `PR_BODY_DRAFT.md`), let CI
    run on all supported Pythons.
 3. Optional: refresh `assets/demo.svg` from live CLI output (text updated;

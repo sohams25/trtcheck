@@ -6,6 +6,19 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 ## [Unreleased]
 
 ### Added
+- Real-TensorRT smoke validation (2026-07-22): the 7-model corpus ran
+  against genuine TensorRT 10.3.0 (official NGC `tensorrt:24.08-py3`
+  container, RTX 4050 Laptop GPU) using the installed wheel — 5 genuine
+  engine builds (including the `--fix` output and the Reshape-INT64
+  regression model), 2 genuine parser failures (SequenceEmpty, custom
+  domain without plugin), and zero disagreements between
+  `--verify-runtime` and independent direct `trtexec` runs. New
+  repo-owned runner: `scripts/real-smoke-container.sh` +
+  `scripts/real_tensorrt_smoke.py`; evidence in
+  `REAL_TENSORRT_VALIDATION_REPORT.md` and
+  `bench/real_tensorrt_smoke_results.json`. Recorded TensorRT-10.3
+  trtexec behavior: dynamic models without shape flags are auto-overridden
+  to 1x1x1x1 (warning), not rejected.
 - Release-readiness pass (2026-07-22): a recorded trtexec parser/build
   *failure* now demotes an otherwise-`likely` verdict to `unverified`
   (runtime evidence against the model is never hidden behind a clean

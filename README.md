@@ -144,7 +144,14 @@ matrix:
 reported separately, split by ground truth. Twelve models is a small
 corpus and the failure cases are synthetic, so read this as "the checks
 do what they claim on known patterns", not as a field-accuracy estimate.
-Ground truth is documented TRT behavior, not a live `trtexec` run.
+For the scorecard corpus, ground truth is documented TRT behavior, not a
+live `trtexec` run. Separately, the runtime-verification integration was
+smoke-tested against **real TensorRT 10.3.0** (official NGC container, 7
+representative fixtures: 5 genuine engine builds, 2 genuine parser
+failures, full agreement between `--verify-runtime` and direct `trtexec`)
+— see [`REAL_TENSORRT_VALIDATION_REPORT.md`](REAL_TENSORRT_VALIDATION_REPORT.md).
+That validates the integration path and those cases, not universal model
+compatibility.
 [`SCORECARD.md`](SCORECARD.md) has the per-model table, the methodology,
 and what each run caught (the first run's false negative became the
 `loop_runtime_trip_count` critical check; this run exposed a `Clip`

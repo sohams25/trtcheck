@@ -43,6 +43,7 @@
 - [x] `python -m build` + `twine check` pass
 - [x] `scripts/package-smoke.sh` — wheel install in fresh venv, CLI
       analyze / JSON / fix / missing-trtexec paths
-- [ ] Real `trtexec` smoke on a TensorRT machine — attempted on the dev
-      host and blocked (no TensorRT present); procedure + partial live
-      validation in `REAL_TENSORRT_VALIDATION_REPORT.md`
+- [x] Real `trtexec` smoke — TensorRT 10.3.0 (NGC `24.08-py3` container,
+      RTX 4050): 7-model corpus, 5 genuine builds, 2 genuine failures,
+      0 wrapper/direct disagreements, installed wheel used throughout.
+      Evidence: `REAL_TENSORRT_VALIDATION_REPORT.md`

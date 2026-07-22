@@ -33,6 +33,14 @@ Theme: **honest verdicts, safe fixes.**
   *failure* demotes an otherwise-clean report to `unverified`. Static
   analysis still needs no TensorRT, no GPU.
 
+## Runtime evidence
+
+Runtime verification was smoke-tested on TensorRT 10.3.0 using 7
+representative generated/public fixtures in the official NGC container
+(5 genuine builds, 2 genuine failures, full wrapper/trtexec agreement,
+installed wheel). This validates the verification integration and the
+selected cases, not universal model compatibility.
+
 ## Compatibility
 
 - Public API: additive. `conversion_likely` is deprecated but present.
